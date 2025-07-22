@@ -34,48 +34,54 @@ JoiApp is a mobile application built using React Native that enables users to sc
 
 ---
 
-## 📂 Project Structure (example)
-
-JoiApp/
-├── src/
-│ ├── components/
-│ ├── screens/
-│ ├── services/
-│ ├── utils/
-│ └── assets/
-├── App.js
-└── README.md
-
-yaml
-Copy
-Edit
-
----
-
 ## ✅ Getting Started
 
-1. **Install dependencies**
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/your-username/joiapp-mobile.git
+cd joiapp-mobile
+```
+
+### 2. Install Dependencies
 
 ```bash
 npm install
 # or
 yarn install
-Run the app
+```
 
-bash
-Copy
-Edit
-npx react-native run-ios       # iOS
-npx react-native run-android   # Android
-Build for production
+### 3. Run the App
 
-iOS: Use Xcode archive
+#### For iOS
 
-Android: Generate signed APK or AAB
+```bash
+npx react-native run-ios
+```
 
-📌 Notes
-Survey page designs by Sunny (ETA: July 25)
+#### For Android
 
-MVP will launch with only critical features for App Store readiness
+```bash
+npx react-native run-android
+```
 
-Additional features (like full AI interaction) planned for post-launch
+> Make sure your Android emulator or iOS simulator is running, or a real device is connected.
+
+---
+
+### 4. Build for Production
+
+#### iOS
+- Open the project in Xcode
+- Archive and export via the App Store process
+
+#### Android
+
+```bash
+cd android
+./gradlew assembleRelease
+```
+
+- Or generate an AAB file for Google Play submission
+
+---
