@@ -8,6 +8,7 @@ import {
   Dimensions,
   SafeAreaView,
   StatusBar,
+  Easing,
 } from 'react-native';
 import styles from './OnboardingScreen.styles';
 
@@ -93,30 +94,38 @@ const Onboarding = () => {
 
   const nextStep = () => {
     if (currentStep < steps.length - 1) {
-      Animated.sequence([
+      Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 0,
-          duration: 200,
+          duration: 220,
+          easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
         Animated.timing(slideAnim, {
-          toValue: -width,
-          duration: 0,
+          toValue: -width * 0.15,
+          duration: 220,
+          easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]).start();
-
-      setCurrentStep(currentStep + 1);
+      ]).start(() => {
+        setCurrentStep(currentStep + 1);
+        // Instantly reset slide and fade for next step
+        slideAnim.setValue(width * 0.15);
+        Animated.parallel([
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 320,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }),
+          Animated.timing(slideAnim, {
+            toValue: 0,
+            duration: 320,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }),
+        ]).start();
+      });
 
       if (currentStep === 1) {
         setSelectedInputMethod('voice');
