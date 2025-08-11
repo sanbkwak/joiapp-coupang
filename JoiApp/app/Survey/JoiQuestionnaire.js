@@ -10,7 +10,7 @@ import {
   StatusBar,
   Alert,
 } from 'react-native';
-import styles from './JoiQuestionnaire.styles';
+import styles from './JoiQuestionnaire.styles.js';
 
 const { width, height } = Dimensions.get('window');
 
