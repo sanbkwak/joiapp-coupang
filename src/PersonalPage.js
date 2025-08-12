@@ -1,7 +1,8 @@
 // src/components/PersonalPage.js
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { useAuth } from './contexts/AuthContext';
-
+import { WalletContext } from './contexts/WalletContext';
+import { useNavigate } from 'react-router-dom';
 export default function PersonalPage({
   version = '1.0',
   build = '1',
@@ -16,6 +17,7 @@ export default function PersonalPage({
   onWithdrawConsentConfirm, // optional async confirm
 }) {
   const { user, logout } = useAuth?.() ?? { user: null, logout: async () => {} };
+  const { publicKey, connect, isConnected, isInitialized } = useContext(WalletContext) ?? {};
 
   const displayName = user?.displayName || 'Alex Wong';
   const email = user?.email || 'alexwong@example.com';
@@ -23,9 +25,47 @@ export default function PersonalPage({
   const [language, setLanguage] = useState(initialLanguage);
   const [dataUsageConsent, setDataUsageConsent] = useState(false);
   const [withdrawConsent, setWithdrawConsent] = useState(false);
+  
+  // Freighter wallet states
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState('');
+
+  const navigate = useNavigate();
 
   // Simple chevron
   const Chevron = () => <span style={styles.chevron}>›</span>;
+
+  const handleFreighterConnect = async () => {
+    if (!connect) {
+      setConnectionStatus('❌ WalletContext not available');
+      return;
+    }
+
+    setIsConnecting(true);
+    setConnectionStatus('🔄 Connecting to Freighter wallet...');
+    
+    try {
+      await connect();
+      setConnectionStatus('✅ Connected successfully!');
+    } catch (err) {
+      console.error('Connection error:', err);
+      
+      let errorMessage = 'Connection failed';
+      if (err.message.includes('User declined access') || err.message.includes('User denied access')) {
+        errorMessage = '❌ Connection denied by user';
+      } else if (err.message.includes('not found') || err.message.includes('not detected')) {
+        errorMessage = '❌ Freighter wallet not found. Please install the Freighter extension from freighter.app';
+      } else if (err.message.includes('not available')) {
+        errorMessage = '❌ Freighter API not available. Please update your extension or try refreshing the page.';
+      } else {
+        errorMessage = `❌ Error: ${err.message}`;
+      }
+      
+      setConnectionStatus(errorMessage);
+    } finally {
+      setIsConnecting(false);
+    }
+  };
 
   const handleWithdrawToggle = async (next) => {
     if (typeof onWithdrawConsentConfirm === 'function') {
@@ -33,6 +73,18 @@ export default function PersonalPage({
       if (!ok) return;
     }
     setWithdrawConsent(next);
+  };
+
+  const formatAddress = (address) => {
+    if (!address) return '';
+    return `${address.slice(0, 6)}...${address.slice(-6)}`;
+  };
+
+  const navigateToTrustline = () => {
+    // You can implement navigation to your Trustline component here
+    // For example, if using React Router:
+    navigate('/wallet/trustline');
+    alert('Navigate to Trustline component - implement based on your routing setup');
   };
 
   return (
@@ -65,6 +117,70 @@ export default function PersonalPage({
           <span>View Survey Results</span>
           <Chevron />
         </RowButton>
+
+        {/* SECTION: Stellar Wallet */}
+        <SectionTitle>Stellar Wallet</SectionTitle>
+
+        {!isInitialized ? (
+          <Row>
+            <span>🔄 Checking wallet connection...</span>
+          </Row>
+        ) : !isConnected ? (
+          <>
+            <RowButton 
+              onClick={handleFreighterConnect} 
+              ariaLabel="Connect Freighter Wallet"
+              disabled={isConnecting}
+            >
+              <span>{isConnecting ? 'Connecting...' : 'Connect Freighter Wallet'}</span>
+              <Chevron />
+            </RowButton>
+            
+            <div style={styles.helpText}>
+              Don't have Freighter?{' '}
+              <a 
+                href="https://www.freighter.app/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                style={styles.helpLink}
+              >
+                Install it here
+              </a>
+            </div>
+          </>
+        ) : (
+          <>
+            <Row>
+              <div style={{ flex: 1 }}>
+                <div style={styles.primaryText}>Freighter Wallet</div>
+                <div style={styles.secondaryText}>{formatAddress(publicKey)}</div>
+              </div>
+              <div style={styles.statusBadge}>Connected</div>
+            </Row>
+
+            <RowButton onClick={navigateToTrustline} ariaLabel="Manage SZUP Trustline">
+              <span>Manage SZUP Trustline</span>
+              <Chevron />
+            </RowButton>
+
+            <RowButton 
+              onClick={() => window.location.href = '/wallet/transfer'} 
+              ariaLabel="Transfer SZUP"
+            >
+              <span>Transfer SZUP</span>
+              <Chevron />
+            </RowButton>
+
+  
+          </>
+        )}
+
+        {/* Status message */}
+        {connectionStatus && (
+          <div style={styles.statusMessage}>
+            {connectionStatus}
+          </div>
+        )}
 
         {/* SECTION: Settings */}
         <SectionTitle>Settings</SectionTitle>
@@ -159,12 +275,17 @@ function Row({ children }) {
   return <div style={styles.row}>{children}</div>;
 }
 
-function RowButton({ children, onClick, ariaLabel }) {
+function RowButton({ children, onClick, ariaLabel, disabled = false }) {
   return (
     <button
       onClick={onClick}
       aria-label={ariaLabel}
-      style={{ ...styles.row, ...styles.rowButton }}
+      disabled={disabled}
+      style={{
+        ...styles.row,
+        ...styles.rowButton,
+        ...(disabled ? styles.disabledButton : {})
+      }}
     >
       {children}
     </button>
@@ -236,6 +357,10 @@ const styles = {
     outline: 'none',
     cursor: 'pointer',
   },
+  disabledButton: {
+    opacity: 0.6,
+    cursor: 'not-allowed',
+  },
   primaryText: {
     fontSize: 18,
     fontWeight: 700,
@@ -270,6 +395,31 @@ const styles = {
     width: 20,
     height: 20,
     cursor: 'pointer',
+  },
+  statusBadge: {
+    backgroundColor: '#10b981',
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 600,
+    padding: '4px 8px',
+    borderRadius: 12,
+  },
+  statusMessage: {
+    padding: '12px 16px',
+    backgroundColor: '#f9fafb',
+    borderBottom: '1px solid #e5e7eb',
+    fontSize: 14,
+    color: '#374151',
+  },
+  helpText: {
+    padding: '8px 16px',
+    fontSize: 12,
+    color: '#6b7280',
+    borderBottom: '1px solid #e5e7eb',
+  },
+  helpLink: {
+    color: '#2563eb',
+    textDecoration: 'none',
   },
   footerVersion: {
     textAlign: 'center',

@@ -78,7 +78,8 @@ const App = () => {
           <Route path="/dashboard"   element={<DashboardPage />} />
           <Route path="/profile"     element={<ProfilePage />} />
           <Route path="/settings"    element={<SettingsPage />} />
-
+          <Route path="/personal"    element={<PersonalPage />} />
+          
           {/* (Optional) keep your old admin UI on a different path */}
           <Route path="/legacy-admin" element={<AdminPage />} />
 
