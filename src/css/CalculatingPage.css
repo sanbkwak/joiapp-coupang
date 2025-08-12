@@ -1,0 +1,263 @@
+/* Loading container for spinner */
+.loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 20px;
+}
+.emotional-fitness-status {
+    position: fixed;
+    top: 10px; /* Adjust this value as needed */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    z-index: 999; /* ensures it's visible above other elements */
+    text-align: center;
+  }
+  
+  .emotional-fitness-status .fit,
+  .emotional-fitness-status .unfit {
+    font-size: 1.8rem; /* Adjust font-size here for bigger text */
+    font-weight: bold;
+    padding: 10px;
+    border-radius: 8px;
+    display: inline-block;
+  }
+  
+  .emotional-fitness-status .fit {
+    background-color: #e0f7fa;
+    color: #00695c;
+  }
+  
+  .emotional-fitness-status .unfit {
+    background-color: #ffebee;
+    color: #c62828;
+  }
+  
+/* Spinner styling */
+.spinner {
+    border: 8px solid #f3f3f3; /* Light grey */
+    border-top: 8px solid #3498db; /* Blue */
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    animation: spin 1s linear infinite;
+    margin-bottom: 10px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+
+/* Container for the overall results */
+.result-container {
+    width: 90%;
+    max-width: 900px;
+    margin: 40px auto;
+    font-family: Arial, sans-serif;
+    color: #333;
+}
+
+/* Box for the prediction sections (PHQ2 and GAD2) */
+.prediction-section {
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 30px;
+    background-color: #fff;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+/* Separate the PHQ2 and GAD2 sections inside the prediction box */
+.phq2-section,
+.gad2-section {
+    margin-bottom: 20px;
+}
+
+/* Optionally add extra spacing between PHQ2 and GAD2 sections */
+.gad2-section {
+    border-top: 1px solid #eee;
+    padding-top: 20px;
+}
+
+/* Box for the mood and anxiety analysis */
+.analysis-section {
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 30px;
+    background-color: #f7f7f7;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    text-align: center;
+}
+
+/* Button container styling */
+.button-container {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-bottom: 40px;
+}
+
+/* Button styling for consistency */
+.button-container button {
+    padding: 10px 20px;
+    font-size: 1rem;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+/* Back button style */
+.button-container button:first-child {
+    background-color: #007bff;
+    color: #fff;
+}
+
+.button-container button:first-child:hover {
+    background-color: #0056b3;
+}
+
+/* Logout button style */
+.button-container button:last-child {
+    background-color: #f44336;
+    color: #fff;
+}
+
+.button-container button:last-child:hover {
+    background-color: #d32f2f;
+}
+
+/* Ensure chart containers inside the renderChart remain centered */
+.chart-container {
+    margin: 0 auto;
+}
+
+/* Main container for the CalculatingPage */
+.calculating-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+    background: #f9f9f9;
+    min-height: calc(100vh - 80px);
+}
+
+/* Title styling */
+.calculating-title {
+    font-size: 2rem;
+    color: #333;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+/* Progress bar container */
+.progress-bar-container {
+    width: 80%;
+    margin: 20px 0;
+}
+
+/* HTML5 progress element styling */
+progress {
+    width: 100%;
+    height: 20px;
+    -webkit-appearance: none;
+    appearance: none;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #e0e0e0;
+}
+
+progress::-webkit-progress-bar {
+    background-color: #e0e0e0;
+}
+
+progress::-webkit-progress-value {
+    background-color: #007bff;
+}
+
+/* Container for each chart section */
+.chart-container {
+    width: 90%;
+    max-width: 800px;
+    background-color: #fff;
+    padding: 20px;
+    margin: 20px auto;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+/* Chart title styling */
+.chart-title {
+    font-size: 1.5rem;
+    color: #333;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+/* Text elements for result details */
+.result-text {
+    font-size: 1.2rem;
+    color: #555;
+    margin: 10px 0;
+    text-align: center;
+}
+
+/* Button container */
+.button-container {
+    display: flex;
+    gap: 20px;
+    margin-top: 30px;
+}
+
+/* Button styling */
+.button-container button {
+    padding: 10px 20px;
+    font-size: 1rem;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+/* Back button */
+.button-container .back-button {
+    background-color: #007bff;
+    color: white;
+}
+
+.button-container .back-button:hover {
+    background-color: #0056b3;
+}
+
+/* Logout button */
+.button-container .logout-button {
+    background-color: #f44336;
+    color: white;
+}
+
+.button-container .logout-button:hover {
+    background-color: #d32f2f;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+    .calculating-title {
+        font-size: 1.5rem;
+    }
+    .progress-bar-container {
+        width: 95%;
+    }
+    .chart-container {
+        width: 95%;
+        padding: 15px;
+    }
+    .result-text {
+        font-size: 1rem;
+    }
+}

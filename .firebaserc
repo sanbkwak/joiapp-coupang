@@ -1,0 +1,16 @@
+{
+  "projects": {
+    "default": "joiapp-coupang-716f2"
+  },
+  "targets": {
+    "joiapp-coupang-716f2": {
+      "hosting": {
+        "coupang": [
+          "coupang-joiapp"
+        ]
+      }
+    }
+  },
+  "etags": {},
+  "dataconnectEmulatorConfig": {}
+}

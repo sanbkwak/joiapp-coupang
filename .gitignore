@@ -1,0 +1,40 @@
+# Node / build
+node_modules/
+build/
+coverage/
+.firebase/
+
+# Keep tools/ tracked; ignore only secrets in it
+tools/.env
+tools/.env.*
+tools/*serviceAccount*.json
+tools/serviceAccountKey.json
+!tools/.env.example
+
+# Root env files (don’t commit)
+.env
+.env.*
+!.env.example
+
+# Firebase admin keys anywhere (belt & suspenders)
+*.serviceAccount*.json
+serviceAccount*.json
+firebase-adminsdk-*.json
+
+# OS / logs
+.DS_Store
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python & virtualenv
+myenv/
+venv/
+.venv/
+
+# misc
+.DS_Store
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+myenv/

@@ -1,0 +1,33 @@
+{
+  "hosting": [
+    {
+      "site": "joiapp-net",
+      "public": "build/main",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "rewrites": [
+        { "source": "**", "destination": "/index.html" }
+      ]
+    },
+{
+      
+      "site": "joiapp-coupang",  
+      "public": "build/coupang",
+
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+
+    
+      "rewrites": [
+        { "source": "**", "destination": "/index.html" }
+      ]
+    }
+  ]
+}
+
