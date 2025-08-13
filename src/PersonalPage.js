@@ -1,8 +1,21 @@
 // src/components/PersonalPage.js
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { useAuth } from './contexts/AuthContext';
 import { WalletContext } from './contexts/WalletContext';
 import { useNavigate } from 'react-router-dom';
+import { 
+  getUserProfile,
+  getUserConsents, 
+  getUserSettings, 
+  getUserDevicePermissions,
+  updateUserConsent,
+  updateUserSetting,
+  updateDevicePermission,
+  handleConsentWithdrawal,
+  logUserActivity,
+  initializeUserIfNeeded
+} from './utils/userModel';
+
 export default function PersonalPage({
   version = '1.0',
   build = '1',
@@ -16,11 +29,19 @@ export default function PersonalPage({
   onOpenTOS,
   onWithdrawConsentConfirm, // optional async confirm
 }) {
-  const { user, logout } = useAuth?.() ?? { user: null, logout: async () => {} };
-  const { publicKey, connect, isConnected, isInitialized } = useContext(WalletContext) ?? {};
+  const { user, logout, loading: authLoading } = useAuth() || { user: null, logout: async () => {}, loading: true };
+  const { publicKey, connect, isConnected, isInitialized } = useContext(WalletContext) || {};
 
-  const displayName = user?.displayName || 'Alex Wong';
-  const email = user?.email || 'alexwong@example.com';
+  // State for user data
+  const [userData, setUserData] = useState(null);
+  const [userDataLoading, setUserDataLoading] = useState(true);
+  const [userConsents, setUserConsents] = useState({});
+  const [userSettings, setUserSettings] = useState({});
+  const [devicePermissions, setDevicePermissions] = useState({});
+  
+  // Get display name and email from Firebase user or fallback
+  const displayName = user?.displayName || user?.email?.split('@')[0] || 'User';
+  const email = user?.email || 'No email provided';
 
   const [language, setLanguage] = useState(initialLanguage);
   const [dataUsageConsent, setDataUsageConsent] = useState(false);
@@ -32,12 +53,108 @@ export default function PersonalPage({
 
   const navigate = useNavigate();
 
+  // Fetch user data, consents, and settings from Firestore
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (!user?.uid) {
+        setUserDataLoading(false);
+        return;
+      }
+
+      try {
+        // Ensure user exists in Firestore first
+        await initializeUserIfNeeded(user.uid);
+
+        // Fetch all user data in parallel
+        const [profile, consents, settings, permissions] = await Promise.all([
+          getUserProfile(user.uid).catch((err) => {
+            console.error('Error fetching profile:', err);
+            return null;
+          }),
+          getUserConsents(user.uid).catch((err) => {
+            console.error('Error fetching consents:', err);
+            return {};
+          }),
+          getUserSettings(user.uid).catch((err) => {
+            console.error('Error fetching settings:', err);
+            return {};
+          }),
+          getUserDevicePermissions(user.uid).catch((err) => {
+            console.error('Error fetching permissions:', err);
+            return {};
+          })
+        ]);
+        
+        // Set user profile data
+        if (profile) {
+          setUserData(profile);
+          console.log('User data loaded:', profile);
+        }
+
+        // Set consents state
+        setUserConsents(consents);
+        setDataUsageConsent(consents.dataUsage?.granted || false);
+        setWithdrawConsent(consents.withdrawConsent?.granted || false);
+
+        // Set settings state
+        setUserSettings(settings);
+        setLanguage(settings.language || initialLanguage);
+
+        // Set device permissions state
+        setDevicePermissions(permissions);
+
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+      } finally {
+        setUserDataLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, [user?.uid, initialLanguage]);
+
+  // Show loading state while auth is initializing
+  if (authLoading || userDataLoading) {
+    return (
+      <div style={styles.screen}>
+        <div style={styles.card}>
+          <div style={styles.loadingContainer}>
+            <div style={styles.loadingSpinner}></div>
+            <div style={styles.loadingText}>Loading your profile...</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login prompt if not authenticated
+  if (!user) {
+    return (
+      <div style={styles.screen}>
+        <div style={styles.card}>
+          <div style={styles.notAuthenticatedContainer}>
+            <h2 style={styles.notAuthenticatedTitle}>Please Log In</h2>
+            <p style={styles.notAuthenticatedText}>
+              You need to be logged in to view your personal profile.
+            </p>
+            <button
+              style={styles.loginButton}
+              onClick={() => navigate('/login')}
+            >
+              Go to Login
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Simple chevron
   const Chevron = () => <span style={styles.chevron}>›</span>;
 
   const handleFreighterConnect = async () => {
     if (!connect) {
-      setConnectionStatus('❌ WalletContext not available');
+      setConnectionStatus('⌐ WalletContext not available');
       return;
     }
 
@@ -47,18 +164,21 @@ export default function PersonalPage({
     try {
       await connect();
       setConnectionStatus('✅ Connected successfully!');
+      
+      // Log wallet connection
+      await logUserActivity(user.uid, 'wallet_connected', { publicKey });
     } catch (err) {
       console.error('Connection error:', err);
       
       let errorMessage = 'Connection failed';
       if (err.message.includes('User declined access') || err.message.includes('User denied access')) {
-        errorMessage = '❌ Connection denied by user';
+        errorMessage = '⌐ Connection denied by user';
       } else if (err.message.includes('not found') || err.message.includes('not detected')) {
-        errorMessage = '❌ Freighter wallet not found. Please install the Freighter extension from freighter.app';
+        errorMessage = '⌐ Freighter wallet not found. Please install the Freighter extension from freighter.app';
       } else if (err.message.includes('not available')) {
-        errorMessage = '❌ Freighter API not available. Please update your extension or try refreshing the page.';
+        errorMessage = '⌐ Freighter API not available. Please update your extension or try refreshing the page.';
       } else {
-        errorMessage = `❌ Error: ${err.message}`;
+        errorMessage = `⌐ Error: ${err.message}`;
       }
       
       setConnectionStatus(errorMessage);
@@ -72,7 +192,151 @@ export default function PersonalPage({
       const ok = await onWithdrawConsentConfirm(next);
       if (!ok) return;
     }
-    setWithdrawConsent(next);
+    
+    try {
+      if (next) {
+        // Handle full consent withdrawal
+        await handleConsentWithdrawal(user.uid);
+        setWithdrawConsent(true);
+        setDataUsageConsent(false); // Automatically revoke data usage when withdrawing
+        
+        // Update local state
+        setUserConsents(prev => ({
+          ...prev,
+          withdrawConsent: { granted: true, timestamp: new Date() },
+          dataUsage: { granted: false, timestamp: new Date() }
+        }));
+        
+        alert('All consents have been withdrawn successfully.');
+      } else {
+        // Just update the withdraw consent flag
+        await updateUserConsent(user.uid, 'withdrawConsent', false);
+        setWithdrawConsent(false);
+        
+        setUserConsents(prev => ({
+          ...prev,
+          withdrawConsent: { granted: false, timestamp: new Date() }
+        }));
+      }
+    } catch (error) {
+      console.error('Error updating consent:', error);
+      alert('Failed to update consent. Please try again.');
+      // Revert the state on error
+      setWithdrawConsent(!next);
+    }
+  };
+
+  const handleDataUsageToggle = async (granted) => {
+    try {
+      await updateUserConsent(user.uid, 'dataUsage', granted);
+      setDataUsageConsent(granted);
+      
+      setUserConsents(prev => ({
+        ...prev,
+        dataUsage: { granted, timestamp: new Date() }
+      }));
+      
+      // Log the activity
+      await logUserActivity(user.uid, 'data_usage_consent_changed', { granted });
+      
+      // Show success message
+      const message = granted ? 'Data usage consent granted' : 'Data usage consent revoked';
+      setConnectionStatus(`✅ ${message}`);
+      setTimeout(() => setConnectionStatus(''), 3000);
+      
+    } catch (error) {
+      console.error('Error updating data usage consent:', error);
+      alert('Failed to update consent. Please try again.');
+      // Revert the state on error
+      setDataUsageConsent(!granted);
+    }
+  };
+
+  const handleLanguageChange = async (newLanguage) => {
+    try {
+      await updateUserSetting(user.uid, 'language', newLanguage);
+      setLanguage(newLanguage);
+      
+      setUserSettings(prev => ({
+        ...prev,
+        language: newLanguage
+      }));
+      
+      // Log the activity
+      await logUserActivity(user.uid, 'language_changed', { language: newLanguage });
+      
+      // Show success message
+      setConnectionStatus(`✅ Language changed to ${newLanguage}`);
+      setTimeout(() => setConnectionStatus(''), 3000);
+      
+    } catch (error) {
+      console.error('Error updating language:', error);
+      alert('Failed to update language. Please try again.');
+      // Revert the state on error
+      setLanguage(language);
+    }
+  };
+
+  const handleNotificationsClick = async () => {
+    if (onNotifications) {
+      onNotifications();
+    } else {
+      try {
+        // Toggle email notifications
+        const currentEmailSetting = userSettings.notifications?.email || false;
+        await updateUserSetting(user.uid, 'notifications.email', !currentEmailSetting);
+        
+        setUserSettings(prev => ({
+          ...prev,
+          notifications: {
+            ...prev.notifications,
+            email: !currentEmailSetting
+          }
+        }));
+        
+        const message = !currentEmailSetting ? 'Email notifications enabled' : 'Email notifications disabled';
+        setConnectionStatus(`✅ ${message}`);
+        setTimeout(() => setConnectionStatus(''), 3000);
+        
+      } catch (error) {
+        console.error('Error updating notifications:', error);
+        alert('Failed to update notification settings. Please try again.');
+      }
+    }
+  };
+
+  const handleCameraMicrophoneClick = async () => {
+    if (onCameraMicrophone) {
+      onCameraMicrophone();
+    } else {
+      try {
+        // Check if browser supports permissions API
+        if ('permissions' in navigator) {
+          // Request camera and microphone permissions
+          const cameraPermission = await navigator.permissions.query({ name: 'camera' });
+          const micPermission = await navigator.permissions.query({ name: 'microphone' });
+          
+          await updateDevicePermission(user.uid, 'camera', cameraPermission.state === 'granted');
+          await updateDevicePermission(user.uid, 'microphone', micPermission.state === 'granted');
+          
+          // Refresh device permissions
+          const updatedPermissions = await getUserDevicePermissions(user.uid);
+          setDevicePermissions(updatedPermissions);
+          
+          setConnectionStatus('✅ Device permissions updated');
+          setTimeout(() => setConnectionStatus(''), 3000);
+        } else {
+          // Fallback for browsers without permissions API
+          setConnectionStatus('ℹ️ Please check your browser settings for camera and microphone permissions');
+          setTimeout(() => setConnectionStatus(''), 3000);
+        }
+        
+      } catch (error) {
+        console.error('Error checking device permissions:', error);
+        setConnectionStatus('⚠️ Unable to check device permissions. Please check your browser settings.');
+        setTimeout(() => setConnectionStatus(''), 3000);
+      }
+    }
   };
 
   const formatAddress = (address) => {
@@ -81,10 +345,31 @@ export default function PersonalPage({
   };
 
   const navigateToTrustline = () => {
-    // You can implement navigation to your Trustline component here
-    // For example, if using React Router:
     navigate('/wallet/trustline');
-    alert('Navigate to Trustline component - implement based on your routing setup');
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logUserActivity(user.uid, 'user_logout', {});
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Force navigation even if logout fails
+      navigate('/login');
+    }
+  };
+
+  const formatTimestamp = (timestamp) => {
+    if (!timestamp) return 'Never';
+    
+    try {
+      // Handle Firestore timestamp or regular Date
+      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+      return date.toLocaleDateString();
+    } catch (error) {
+      return 'Invalid date';
+    }
   };
 
   return (
@@ -103,6 +388,12 @@ export default function PersonalPage({
           <div style={{ flex: 1 }}>
             <div style={styles.primaryText}>{displayName}</div>
             <div style={styles.secondaryText}>{email}</div>
+            {userData && (
+              <div style={styles.tertiaryText}>
+                Login Count: {userData.numberOfLogins || 0} | 
+                Joi Points: {userData.JoiPoints || 0}
+              </div>
+            )}
           </div>
           <button
             style={styles.linkButton}
@@ -164,14 +455,12 @@ export default function PersonalPage({
             </RowButton>
 
             <RowButton 
-              onClick={() => window.location.href = '/wallet/transfer'} 
+              onClick={() => navigate('/wallet/transfer')} 
               ariaLabel="Transfer SZUP"
             >
               <span>Transfer SZUP</span>
               <Chevron />
             </RowButton>
-
-  
           </>
         )}
 
@@ -187,9 +476,23 @@ export default function PersonalPage({
 
         <RowButton
           onClick={() => {
-            // Replace with your language selector modal if you have one.
-            const next = window.prompt('Language', language) || language;
-            setLanguage(next);
+            const next = window.prompt('Select Language:\n1. English\n2. Spanish\n3. French\n4. German\n5. Chinese\n\nEnter your choice (1-5) or type custom language:', '1');
+            
+            if (next) {
+              let newLanguage;
+              switch(next) {
+                case '1': newLanguage = 'English'; break;
+                case '2': newLanguage = 'Spanish'; break;
+                case '3': newLanguage = 'French'; break;
+                case '4': newLanguage = 'German'; break;
+                case '5': newLanguage = 'Chinese'; break;
+                default: newLanguage = next; break;
+              }
+              
+              if (newLanguage && newLanguage !== language) {
+                handleLanguageChange(newLanguage);
+              }
+            }
           }}
           ariaLabel="Language"
         >
@@ -197,13 +500,20 @@ export default function PersonalPage({
           <span style={styles.valueText}>{language}</span>
         </RowButton>
 
-        <RowButton onClick={onNotifications} ariaLabel="Notifications">
+        <RowButton onClick={handleNotificationsClick} ariaLabel="Notifications">
           <span>Notifications</span>
+          <span style={styles.valueText}>
+            {userSettings.notifications?.email ? '✓' : '○'}
+          </span>
           <Chevron />
         </RowButton>
 
-        <RowButton onClick={onCameraMicrophone} ariaLabel="Camera & Microphone">
+        <RowButton onClick={handleCameraMicrophoneClick} ariaLabel="Camera & Microphone">
           <span>Camera & Microphone</span>
+          <span style={styles.valueText}>
+            {devicePermissions.camera?.granted && devicePermissions.microphone?.granted ? '✓' : 
+             devicePermissions.camera?.granted || devicePermissions.microphone?.granted ? '◐' : '○'}
+          </span>
           <Chevron />
         </RowButton>
 
@@ -215,7 +525,7 @@ export default function PersonalPage({
           <input
             type="checkbox"
             checked={dataUsageConsent}
-            onChange={(e) => setDataUsageConsent(e.target.checked)}
+            onChange={(e) => handleDataUsageToggle(e.target.checked)}
             aria-label="Data Usage Consent"
             style={styles.checkbox}
           />
@@ -231,6 +541,20 @@ export default function PersonalPage({
             style={styles.checkbox}
           />
         </Row>
+
+        {/* Display consent timestamps */}
+        {(userConsents.dataUsage?.timestamp || userConsents.withdrawConsent?.timestamp) && (
+          <div style={styles.consentInfo}>
+            <div style={styles.consentTimestamp}>
+              {userConsents.dataUsage?.timestamp && (
+                <div>Data usage updated: {formatTimestamp(userConsents.dataUsage.timestamp)}</div>
+              )}
+              {userConsents.withdrawConsent?.timestamp && (
+                <div>Consent status updated: {formatTimestamp(userConsents.withdrawConsent.timestamp)}</div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Legal / Docs */}
         <RowButton onClick={onOpenJDVM} ariaLabel="Joi Data Valuation Model">
@@ -250,12 +574,10 @@ export default function PersonalPage({
 
         {/* Sign out */}
         <RowButton
-          onClick={async () => {
-            try { await logout?.(); } catch (_) {}
-          }}
+          onClick={handleLogout}
           ariaLabel="Sign Out"
         >
-          <span style={{ color: '#1f2937', fontWeight: 600 }}>Sign Out</span>
+          <span style={{ color: '#dc2626', fontWeight: 600 }}>Sign Out</span>
         </RowButton>
 
         {/* Footer version */}
@@ -312,6 +634,58 @@ const styles = {
     borderRadius: 28,
     boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
     overflow: 'hidden',
+  },
+  loadingContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '60px 20px',
+  },
+  loadingSpinner: {
+    width: '40px',
+    height: '40px',
+    border: '4px solid #e5e7eb',
+    borderTop: '4px solid #2563eb',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite',
+    marginBottom: '16px',
+  },
+  '@keyframes spin': {
+    '0%': { transform: 'rotate(0deg)' },
+    '100%': { transform: 'rotate(360deg)' }
+  },
+  loadingText: {
+    fontSize: '16px',
+    color: '#6b7280',
+    textAlign: 'center',
+  },
+  notAuthenticatedContainer: {
+    padding: '60px 20px',
+    textAlign: 'center',
+  },
+  notAuthenticatedTitle: {
+    fontSize: '24px',
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: '12px',
+  },
+  notAuthenticatedText: {
+    fontSize: '16px',
+    color: '#6b7280',
+    marginBottom: '24px',
+    lineHeight: '1.5',
+  },
+  loginButton: {
+    backgroundColor: '#2563eb',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    padding: '12px 24px',
+    fontSize: '16px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'backgroundColor 0.2s',
   },
   headerRow: {
     position: 'relative',
@@ -372,6 +746,11 @@ const styles = {
     color: '#6b7280',
     marginTop: 2,
   },
+  tertiaryText: {
+    fontSize: 12,
+    color: '#9ca3af',
+    marginTop: 4,
+  },
   valueText: {
     marginLeft: 'auto',
     color: '#6b7280',
@@ -420,6 +799,16 @@ const styles = {
   helpLink: {
     color: '#2563eb',
     textDecoration: 'none',
+  },
+  consentInfo: {
+    padding: '8px 16px',
+    backgroundColor: '#f3f4f6',
+    borderBottom: '1px solid #e5e7eb',
+  },
+  consentTimestamp: {
+    fontSize: 11,
+    color: '#6b7280',
+    lineHeight: 1.4,
   },
   footerVersion: {
     textAlign: 'center',
