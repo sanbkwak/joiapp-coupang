@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Joi Dynamic Validation Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            color: white;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+        }
+        
+        .real-time-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 20px;
+            background: rgba(72, 187, 120, 0.2);
+            border: 1px solid #48bb78;
+            border-radius: 25px;
+            font-weight: 600;
+            color: #48bb78;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #48bb78;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+        
+        .data-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease;
+        }
+        
+        .data-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .card-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #2d3748;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .validation-metrics {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin: 15px 0;
+        }
+        
+        .metric-box {
+            text-align: center;
+            padding: 15px;
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        .metric-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 5px;
+            display: block;
+        }
+        
+        .metric-label {
+            font-size: 0.9rem;
+            color: #666;
+            font-weight: 500;
+        }
+        
+        .data-flow {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .data-entry {
+            padding: 12px;
+            background: rgba(102, 126, 234, 0.05);
+            border-left: 3px solid #667eea;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+        
+        .data-entry.new {
+            background: rgba(72, 187, 120, 0.1);
+            border-left-color: #48bb78;
+            animation: slideIn 0.5s ease;
+        }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        .validation-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 10px 0;
+        }
+        
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .status-valid {
+            background: rgba(72, 187, 120, 0.2);
+            color: #2f855a;
+        }
+        
+        .status-invalid {
+            background: rgba(245, 101, 101, 0.2);
+            color: #c53030;
+        }
+        
+        .status-pending {
+            background: rgba(237, 137, 54, 0.2);
+            color: #c05621;
+        }
+        
+        .export-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            text-align: center;
+            grid-column: 1 / -1;
+        }
+        
+        .export-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .export-btn {
+            padding: 15px 25px;
+            border: 2px solid #667eea;
+            background: transparent;
+            color: #667eea;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            font-size: 1rem;
+        }
+        
+        .export-btn:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+        }
+        
+        .alert-panel {
+            background: linear-gradient(45deg, #ff6b6b, #ffa500);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .config-panel {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .config-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 24px;
+            background: #ccc;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .toggle-switch.active {
+            background: #667eea;
+        }
+        
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.3s;
+        }
+        
+        .toggle-switch.active::after {
+            transform: translateX(26px);
+        }
+        
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .loading-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 1200px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="user-info">
+                <div class="avatar" id="userAvatar">JD</div>
+                <div>
+                    <h2 id="userName">John Doe</h2>
+                    <p>Dynamic Validation Model • Firebase Sync Active</p>
+                </div>
+            </div>
+            <div class="real-time-indicator">
+                <div class="status-dot"></div>
+                Real-time Data Validation
+            </div>
+        </div>
+        
+        <div class="alert-panel" id="alertPanel">
+            <span style="font-size: 24px;">🚨</span>
+            <div>
+                <strong>Dynamic Validation Active:</strong> Real-time behavioral pattern analysis from Firebase data streams
+            </div>
+        </div>
+        
+        <div class="config-panel">
+            <h3 style="margin-bottom: 15px;">Validation Configuration</h3>
+            <div class="config-item">
+                <span>Real-time PHQ-2/GAD-2 Validation</span>
+                <div class="toggle-switch active" onclick="toggleValidation('phq_gad')"></div>
+            </div>
+            <div class="config-item">
+                <span>Facial Expression Analysis</span>
+                <div class="toggle-switch active" onclick="toggleValidation('facial')"></div>
+            </div>
+            <div class="config-item">
+                <span>Voice Emotion Detection</span>
+                <div class="toggle-switch active" onclick="toggleValidation('voice')"></div>
+            </div>
+            <div class="config-item">
+                <span>Behavioral Red Flag Detection</span>
+                <div class="toggle-switch active" onclick="toggleValidation('red_flags')"></div>
+            </div>
+        </div>
+        
+        <div class="dashboard-grid">
+            <div class="data-card">
+                <div class="card-title">
+                    🧠 Psychological Validation Pipeline
+                </div>
+                <div class="validation-metrics">
+                    <div class="metric-box">
+                        <span class="metric-value" id="phqValidationRate">94.2%</span>
+                        <span class="metric-label">PHQ-2 Valid Rate</span>
+                    </div>
+                    <div class="metric-box">
+                        <span class="metric-value" id="gadValidationRate">91.8%</span>
+                        <span class="metric-label">GAD-2 Valid Rate</span>
+                    </div>
+                </div>
+                <div class="validation-status">
+                    <span class="status-badge status-valid">✓ Schema Valid</span>
+                    <span class="status-badge status-valid">✓ Range Check</span>
+                </div>
+                <div class="data-flow" id="phqGadFlow"></div>
+            </div>
+            
+            <div class="data-card">
+                <div class="card-title">
+                    🎭 Multimodal Data Validation
+                </div>
+                <div class="validation-metrics">
+                    <div class="metric-box">
+                        <span class="metric-value" id="facialAccuracy">87.3%</span>
+                        <span class="metric-label">Facial Analysis</span>
+                    </div>
+                    <div class="metric-box">
+                        <span class="metric-value" id="voiceAccuracy">92.1%</span>
+                        <span class="metric-label">Voice Analysis</span>
+                    </div>
+                </div>
+                <div class="validation-status">
+                    <span class="status-badge status-valid">✓ Format Valid</span>
+                    <span class="status-badge status-pending">⚠ Quality Check</span>
+                </div>
+                <div class="data-flow" id="multimodalFlow"></div>
+            </div>
+            
+            <div class="data-card">
+                <div class="card-title">
+                    ⚠️ Behavioral Red Flags
+                </div>
+                <div class="validation-metrics">
+                    <div class="metric-box">
+                        <span class="metric-value" id="redFlagCount">7</span>
+                        <span class="metric-label">Active Flags</span>
+                    </div>
+                    <div class="metric-box">
+                        <span class="metric-value" id="interventionScore">2.4</span>
+                        <span class="metric-label">Risk Score</span>
+                    </div>
+                </div>
+                <div class="validation-status">
+                    <span class="status-badge status-invalid">✗ Threshold Exceeded</span>
+                    <span class="status-badge status-valid">✓ Auto-flagged</span>
+                </div>
+                <div class="data-flow" id="redFlagFlow"></div>
+            </div>
+            
+            <div class="data-card">
+                <div class="card-title">
+                    📊 Data Quality Metrics
+                </div>
+                <div class="validation-metrics">
+                    <div class="metric-box">
+                        <span class="metric-value" id="completenessScore">96.7%</span>
+                        <span class="metric-label">Completeness</span>
+                    </div>
+                    <div class="metric-box">
+                        <span class="metric-value" id="consistencyScore">89.4%</span>
+                        <span class="metric-label">Consistency</span>
+                    </div>
+                </div>
+                <div class="validation-status">
+                    <span class="status-badge status-valid">✓ High Quality</span>
+                    <span class="status-badge status-valid">✓ Export Ready</span>
+                </div>
+                <div class="data-flow" id="qualityFlow"></div>
+            </div>
+            
+            <div class="data-card">
+                <div class="card-title">
+                    🔄 Real-time Data Stream
+                </div>
+                <div class="validation-metrics">
+                    <div class="metric-box">
+                        <span class="metric-value" id="streamRate">23.7/min</span>
+                        <span class="metric-label">Data Rate</span>
+                    </div>
+                    <div class="metric-box">
+                        <span class="metric-value" id="latency">127ms</span>
+                        <span class="metric-label">Avg Latency</span>
+                    </div>
+                </div>
+                <div class="validation-status">
+                    <span class="status-badge status-valid">✓ Stream Active</span>
+                    <span class="status-badge status-valid">✓ Low Latency</span>
+                </div>
+                <div class="data-flow" id="streamFlow"></div>
+            </div>
+            
+            <div class="data-card">
+                <div class="card-title">
+                    💰 Monetization Readiness
+                </div>
+                <div class="validation-metrics">
+                    <div class="metric-box">
+                        <span class="metric-value" id="monetizationScore">8.3/10</span>
+                        <span class="metric-label">Data Value</span>
+                    </div>
+                    <div class="metric-box">
+                        <span class="metric-value" id="complianceScore">94%</span>
+                        <span class="metric-label">Compliance</span>
+                    </div>
+                </div>
+                <div class="validation-status">
+                    <span class="status-badge status-valid">✓ Insurance Ready</span>
+                    <span class="status-badge status-valid">✓ B2B Ready</span>
+                </div>
+                <div class="data-flow" id="monetizationFlow"></div>
+            </div>
+            
+            <div class="export-panel">
+                <h3 style="margin-bottom: 15px;">Dynamic Data Export</h3>
+                <p style="color: #666; margin-bottom: 20px;">
+                    Export validated behavioral data in real-time with Firebase synchronization
+                </p>
+                <div class="export-options">
+                    <button class="export-btn" onclick="exportValidatedData('realtime_csv')">
+                        📄 Real-time CSV Stream
+                    </button>
+                    <button class="export-btn" onclick="exportValidatedData('validation_report')">
+                        📋 Validation Report
+                    </button>
+                    <button class="export-btn" onclick="exportValidatedData('monetization_package')">
+                        💼 Monetization Package
+                    </button>
+                    <button class="export-btn" onclick="exportValidatedData('firebase_backup')">
+                        🔥 Firebase Backup
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <h3>Processing Firebase Data</h3>
+            <p>Validating behavioral patterns...</p>
+        </div>
+    </div>
+
+    <script>
+        // Simulated Firebase data structures based on your backend code
+        const firebaseSimulator = {
+            users: {
+                "user123": {
+                    phq2: [
+                        { score: 2, timestamp: new Date(Date.now() - 86400000) },
+                        { score: 3, timestamp: new Date(Date.now() - 172800000) },
+                        { score: 1, timestamp: new Date(Date.now() - 259200000) }
+                    ],
+                    gad2: [
+                        { score: 1, timestamp: new Date(Date.now() - 86400000) },
+                        { score: 4, timestamp: new Date(Date.now() - 172800000) },
+                        { score: 2, timestamp: new Date(Date.now() - 259200000) }
+                    ],
+                    facial_results: [
+                        { dominant_emotion: "happy", timestamp: new Date(Date.now() - 3600000) },
+                        { dominant_emotion: "neutral", timestamp: new Date(Date.now() - 7200000) },
+                        { dominant_emotion: "sad", timestamp: new Date(Date.now() - 10800000) }
+                    ],
+                    voice_results: [
+                        { predicted_emotion: "calm", confidence: 0.87, timestamp: new Date(Date.now() - 1800000) },
+                        { predicted_emotion: "stressed", confidence: 0.92, timestamp: new Date(Date.now() - 5400000) }
+                    ]
+                }
+            },
+            coupang_interim: {
+                "user123": {
+                    status: "complete",
+                    deep_progress: 100,
+                    facial_timestamp: new Date().toISOString(),
+                    voice_timestamp: new Date().toISOString()
+                }
+            },
+            coupang_deep: {
+                "user123": {
+                    phq2_prediction: [2.1, 1.8, 1.5, 1.3, 1.1],
+                    current_phq2: 2,
+                    phq2_deviance: 0.1,
+                    gad2_prediction: [1.9, 1.6, 1.4, 1.2, 1.0],
+                    current_gad2: 1,
+                    gad2_deviance: -0.9,
+                    mood_analysis: "안정",
+                    anxiety_analysis: "개선 추세"
+                }
+            }
+        };
+
+        // Validation configuration
+        let validationConfig = {
+            phq_gad: true,
+            facial: true,
+            voice: true,
+            red_flags: true
+        };
+
+        // Data validation functions
+        function validatePHQGADData(data) {
+            const validation = {
+                isValid: true,
+                errors: [],
+                quality: 0
+            };
+
+            if (!data || !Array.isArray(data)) {
+                validation.isValid = false;
+                validation.errors.push("Invalid data format");
+                return validation;
+            }
+
+            let validCount = 0;
+            for (const entry of data) {
+                if (entry.score >= 0 && entry.score <= 6 && entry.timestamp) {
+                    validCount++;
+                }
+            }
+
+            validation.quality = (validCount / data.length) * 100;
+            if (validation.quality < 80) {
+                validation.isValid = false;
+                validation.errors.push("Data quality below threshold");
+            }
+
+            return validation;
+        }
+
+        function validateMultimodalData(facialData, voiceData) {
+            const validation = {
+                facial: { isValid: true, quality: 0 },
+                voice: { isValid: true, quality: 0 }
+            };
+
+            // Validate facial data
+            if (facialData) {
+                const validEmotions = ['happy', 'sad', 'angry', 'neutral', 'surprised', 'fear', 'disgust'];
+                let validFacial = 0;
+                for (const entry of facialData) {
+                    if (validEmotions.includes(entry.dominant_emotion)) {
+                        validFacial++;
+                    }
+                }
+                validation.facial.quality = (validFacial / facialData.length) * 100;
+            }
+
+            // Validate voice data
+            if (voiceData) {
+                let validVoice = 0;
+                for (const entry of voiceData) {
+                    if (entry.confidence >= 0.5 && entry.predicted_emotion) {
+                        validVoice++;
+                    }
+                }
+                validation.voice.quality = (validVoice / voiceData.length) * 100;
+            }
+
+            return validation;
+        }
+
+        function detectBehavioralRedFlags(userData) {
+            const redFlags = [];
+            
+            // PHQ-2 escalation
+            const phq2Data = userData.phq2 || [];
+            if (phq2Data.length >= 2) {
+                const recent = phq2Data.slice(-2);
+                if (recent[1].score - recent[0].score >= 2) {
+                    redFlags.push({
+                        type: "PHQ2_ESCALATION",
+                        severity: "high",
+                        description: "Rapid increase in depression scores",
+                        timestamp: new Date().toISOString()
+                    });
+                }
+            }
+
+            // GAD-2 sustained elevation
+            const gad2Data = userData.gad2 || [];
+            const recentGAD = gad2Data.slice(-3);
+            if (recentGAD.every(entry => entry.score >= 3)) {
+                redFlags.push({
+                    type: "GAD2_SUSTAINED_HIGH",
+                    severity: "medium",
+                    description: "Sustained high anxiety levels",
+                    timestamp: new Date().toISOString()
+                });
+            }
+
+            // Emotional volatility
+            const facialData = userData.facial_results || [];
+            const negativeEmotions = facialData.filter(entry => 
+                ['sad', 'angry', 'fear', 'disgust'].includes(entry.dominant_emotion)
+            );
+            
+            if (negativeEmotions.length / facialData.length > 0.7) {
+                redFlags.push({
+                    type: "EMOTIONAL_VOLATILITY",
+                    severity: "medium",
+                    description: "High frequency of negative emotional expressions",
+                    timestamp: new Date().toISOString()
+                });
+            }
+
+            return redFlags;
+        }
+
+        // Real-time data processing
+        function processFirebaseData() {
+            const userId = "user123"; // Simulated current user
+            const userData = firebaseSimulator.users[userId];
+            
+            if (!userData) return;
+
+            // Validate PHQ/GAD data
+            if (validationConfig.phq_gad) {
+                const phqValidation = validatePHQGADData(userData.phq2);
+                const gadValidation = validatePHQGADData(userData.gad2);
+                
+                updateMetric('phqValidationRate', phqValidation.quality.toFixed(1) + '%');
+                updateMetric('gadValidationRate', gadValidation.quality.toFixed(1) + '%');
+                
+                addDataEntry('phqGadFlow', 
+                    `PHQ-2: ${userData.phq2[0]?.score} | GAD-2: ${userData.gad2[0]?.score} | Quality: ${phqValidation.quality.toFixed(1)}%`
+                );
+            }
+
+            // Validate multimodal data
+            if (validationConfig.facial && validationConfig.voice) {
+                const multimodalValidation = validateMultimodalData(
+                    userData.facial_results, 
+                    userData.voice_results
+                );
+                
+                updateMetric('facialAccuracy', multimodalValidation.facial.quality.toFixed(1) + '%');
+                updateMetric('voiceAccuracy', multimodalValidation.voice.quality.toFixed(1) + '%');
+                
+                addDataEntry('multimodalFlow', 
+                    `Facial: ${userData.facial_results[0]?.dominant_emotion} | Voice: ${userData.voice_results[0]?.predicted_emotion}`
+                );
+            }
+
+            // Detect red flags
+            if (validationConfig.red_flags) {
+                const redFlags = detectBehavioralRedFlags(userData);
+                updateMetric('redFlagCount', redFlags.length);
+                
+                if (redFlags.length > 0) {
+                    updateMetric('interventionScore', calculateInterventionScore(redFlags).toFixed(1));
+                    
+                    redFlags.forEach(flag => {
+                        addDataEntry('redFlagFlow', 
+                            `${flag.type}: ${flag.description}`, 
+                            flag.severity === 'high' ? 'error' : 'warning'
+                        );
+                    });
+                }
+            }
+
+            // Update quality metrics
+            updateQualityMetrics(userData);
+            
+            // Update monetization readiness
+            updateMonetizationMetrics(userData);
+        }
+
+        function calculateInterventionScore(redFlags) {
+            let score = 0;
+            redFlags.forEach(flag => {
+                score += flag.severity === 'high' ? 1.0 : 0.5;
+            });
+            return Math.min(score, 5.0);
+        }
+
+        function updateQualityMetrics(userData) {
+            // Calculate overall data completeness
+            const totalExpected = 10; // Expected data points
+            const actualData = (userData.phq2?.length || 0) + 
+                              (userData.gad2?.length || 0) + 
+                              (userData.facial_results?.length || 0) + 
+                              (userData.voice_results?.length || 0);
+            
+            const completeness = Math.min((actualData / totalExpected) * 100, 100);
+            updateMetric('completenessScore', completeness.toFixed(1) + '%');
+            
+            // Calculate consistency score
+            const consistency = calculateConsistencyScore(userData);
+            updateMetric('consistencyScore', consistency.toFixed(1) + '%');
+            
+            addDataEntry('qualityFlow', 
+                `Completeness: ${completeness.toFixed(1)}% | Consistency: ${consistency.toFixed(1)}%`
+            );
+        }
+
+        function calculateConsistencyScore(userData) {
+            // Simple consistency check - could be more sophisticated
+            let consistencySum = 0;
+            let checks = 0;
+
+            // Check PHQ-2 consistency
+            if (userData.phq2?.length >= 2) {
+                const phqVariance = calculateVariance(userData.phq2.map(d => d.score));
+                consistencySum += Math.max(0, 100 - (phqVariance * 20));
+                checks++;
+            }
+
+            // Check GAD-2 consistency
+            if (userData.gad2?.length >= 2) {
+                const gadVariance = calculateVariance(userData.gad2.map(d => d.score));
+                consistencySum += Math.max(0, 100 - (gadVariance * 20));
+                checks++;
+            }
+
+            return checks > 0 ? consistencySum / checks : 0;
+        }
+
+        function calculateVariance(data) {
+            const mean = data.reduce((a, b) => a + b, 0) / data.length;
+            const variance = data.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / data.length;
+            return variance;
+        }
+
+        function updateMonetizationMetrics(userData) {
+            // Calculate data value score based on completeness and quality
+            const phqQuality = userData.phq2?.length >= 5 ? 2 : 1;
+            const gadQuality = userData.gad2?.length >= 5 ? 2 : 1;
+            const facialQuality = userData.facial_results?.length >= 10 ? 2 : 1;
+            const voiceQuality = userData.voice_results?.length >= 5 ? 2 : 1;
+            
+            const dataValue = ((phqQuality + gadQuality + facialQuality + voiceQuality) / 8) * 10;
+            updateMetric('monetizationScore', dataValue.toFixed(1) + '/10');
+            
+            // Compliance score based on data validation rates
+            const avgValidation = (94.2 + 91.8 + 87.3 + 92.1) / 4;
+            updateMetric('complianceScore', avgValidation.toFixed(0) + '%');
+            
+            addDataEntry('monetizationFlow', 
+                `Insurance Ready: ${dataValue >= 7 ? 'Yes' : 'No'} | B2B Value: ${(dataValue * 150).toFixed(0)}`
+            );
+        }
+
+        function updateMetric(elementId, value) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.textContent = value;
+                
+                // Add visual feedback for updates
+                element.style.color = '#48bb78';
+                setTimeout(() => {
+                    element.style.color = '#667eea';
+                }, 1000);
+            }
+        }
+
+        function addDataEntry(containerId, text, type = 'normal') {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            const entry = document.createElement('div');
+            entry.className = `data-entry ${type === 'error' ? 'new' : 'new'}`;
+            entry.textContent = `${new Date().toLocaleTimeString()}: ${text}`;
+            
+            if (type === 'error') {
+                entry.style.borderLeftColor = '#f56565';
+                entry.style.background = 'rgba(245, 101, 101, 0.1)';
+            } else if (type === 'warning') {
+                entry.style.borderLeftColor = '#ed8936';
+                entry.style.background = 'rgba(237, 137, 54, 0.1)';
+            }
+            
+            container.insertBefore(entry, container.firstChild);
+            
+            // Limit to 10 entries
+            while (container.children.length > 10) {
+                container.removeChild(container.lastChild);
+            }
+        }
+
+        function updateStreamMetrics() {
+            // Simulate real-time data rate
+            const rate = (Math.random() * 10 + 18).toFixed(1);
+            updateMetric('streamRate', rate + '/min');
+            
+            // Simulate latency
+            const latency = Math.floor(Math.random() * 50 + 100);
+            updateMetric('latency', latency + 'ms');
+            
+            addDataEntry('streamFlow', 
+                `Rate: ${rate}/min | Latency: ${latency}ms | Status: Active`
+            );
+        }
+
+        function toggleValidation(type) {
+            validationConfig[type] = !validationConfig[type];
+            
+            // Update UI
+            const toggles = document.querySelectorAll('.toggle-switch');
+            const configItems = document.querySelectorAll('.config-item');
+            
+            configItems.forEach((item, index) => {
+                const toggle = item.querySelector('.toggle-switch');
+                const configs = ['phq_gad', 'facial', 'voice', 'red_flags'];
+                
+                if (configs[index] === type) {
+                    if (validationConfig[type]) {
+                        toggle.classList.add('active');
+                    } else {
+                        toggle.classList.remove('active');
+                    }
+                }
+            });
+            
+            // Log the change
+            addDataEntry('streamFlow', 
+                `${type.toUpperCase()} validation ${validationConfig[type] ? 'enabled' : 'disabled'}`
+            );
+        }
+
+        function exportValidatedData(exportType) {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            loadingOverlay.style.display = 'flex';
+            
+            // Simulate export process
+            setTimeout(() => {
+                loadingOverlay.style.display = 'none';
+                
+                const exportData = generateExportData(exportType);
+                downloadFile(exportData, exportType);
+                
+                addDataEntry('streamFlow', 
+                    `Export completed: ${exportType}`, 'normal'
+                );
+            }, 2000);
+        }
+
+        function generateExportData(exportType) {
+            const timestamp = new Date().toISOString();
+            const userData = firebaseSimulator.users["user123"];
+            
+            switch (exportType) {
+                case 'realtime_csv':
+                    return {
+                        filename: `joi_realtime_data_${timestamp.split('T')[0]}.csv`,
+                        content: generateCSVContent(userData),
+                        mimeType: 'text/csv'
+                    };
+                    
+                case 'validation_report':
+                    return {
+                        filename: `joi_validation_report_${timestamp.split('T')[0]}.json`,
+                        content: JSON.stringify(generateValidationReport(userData), null, 2),
+                        mimeType: 'application/json'
+                    };
+                    
+                case 'monetization_package':
+                    return {
+                        filename: `joi_monetization_package_${timestamp.split('T')[0]}.json`,
+                        content: JSON.stringify(generateMonetizationPackage(userData), null, 2),
+                        mimeType: 'application/json'
+                    };
+                    
+                case 'firebase_backup':
+                    return {
+                        filename: `joi_firebase_backup_${timestamp.split('T')[0]}.json`,
+                        content: JSON.stringify(firebaseSimulator, null, 2),
+                        mimeType: 'application/json'
+                    };
+                    
+                default:
+                    return null;
+            }
+        }
+
+        function generateCSVContent(userData) {
+            const headers = [
+                'timestamp', 'data_type', 'score_value', 'emotion_label', 
+                'confidence', 'validation_status', 'quality_score', 'risk_flags'
+            ];
+            
+            let rows = [headers.join(',')];
+            
+            // PHQ-2 data
+            userData.phq2?.forEach(entry => {
+                rows.push([
+                    entry.timestamp.toISOString(),
+                    'phq2',
+                    entry.score,
+                    '',
+                    '',
+                    'valid',
+                    '94.2',
+                    entry.score >= 4 ? 'depression_risk' : ''
+                ].join(','));
+            });
+            
+            // GAD-2 data
+            userData.gad2?.forEach(entry => {
+                rows.push([
+                    entry.timestamp.toISOString(),
+                    'gad2',
+                    entry.score,
+                    '',
+                    '',
+                    'valid',
+                    '91.8',
+                    entry.score >= 3 ? 'anxiety_risk' : ''
+                ].join(','));
+            });
+            
+            // Facial data
+            userData.facial_results?.forEach(entry => {
+                rows.push([
+                    entry.timestamp.toISOString(),
+                    'facial_emotion',
+                    '',
+                    entry.dominant_emotion,
+                    '0.87',
+                    'valid',
+                    '87.3',
+                    ['sad', 'angry', 'fear'].includes(entry.dominant_emotion) ? 'negative_emotion' : ''
+                ].join(','));
+            });
+            
+            return rows.join('\n');
+        }
+
+        function generateValidationReport(userData) {
+            return {
+                report_id: `VAL_${Date.now()}`,
+                generated_at: new Date().toISOString(),
+                user_id: "user123",
+                validation_summary: {
+                    overall_quality: "High",
+                    data_completeness: "96.7%",
+                    validation_errors: 2,
+                    red_flags_detected: 7
+                },
+                data_quality_metrics: {
+                    phq2_validation_rate: "94.2%",
+                    gad2_validation_rate: "91.8%",
+                    facial_accuracy: "87.3%",
+                    voice_accuracy: "92.1%"
+                },
+                behavioral_red_flags: detectBehavioralRedFlags(userData),
+                monetization_readiness: {
+                    insurance_ready: true,
+                    b2b_ready: true,
+                    estimated_value: "$1,245",
+                    compliance_score: "94%"
+                },
+                recommendations: [
+                    "Increase facial data collection frequency",
+                    "Implement additional voice quality checks",
+                    "Monitor PHQ-2 escalation patterns"
+                ]
+            };
+        }
+
+        function generateMonetizationPackage(userData) {
+            return {
+                package_id: `MON_${Date.now()}`,
+                generated_at: new Date().toISOString(),
+                user_demographics: {
+                    age_range: "25-34",
+                    risk_profile: "moderate",
+                    engagement_level: "high"
+                },
+                behavioral_insights: {
+                    depression_risk_score: 2.1,
+                    anxiety_risk_score: 1.8,
+                    emotional_volatility: 0.3,
+                    intervention_likelihood: "medium"
+                },
+                monetization_channels: {
+                    insurance_scoring: {
+                        risk_adjustment: "+12%",
+                        premium_impact: "$147/month",
+                        confidence: "high"
+                    },
+                    workplace_wellness: {
+                        productivity_score: 7.8,
+                        intervention_cost: "$240",
+                        roi_estimate: "3.2x"
+                    },
+                    pharmaceutical_research: {
+                        study_eligibility: ["depression_study_2024", "anxiety_intervention_trial"],
+                        compensation_value: "$450"
+                    }
+                },
+                compliance_certifications: [
+                    "HIPAA_compliant",
+                    "GDPR_compliant", 
+                    "FDA_research_grade"
+                ]
+            };
+        }
+
+        function downloadFile(exportData, exportType) {
+            if (!exportData) return;
+            
+            const blob = new Blob([exportData.content], { type: exportData.mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = exportData.filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Initialize dashboard
+        function initializeDashboard() {
+            // Start real-time processing
+            processFirebaseData();
+            
+            // Set up intervals for real-time updates
+            setInterval(processFirebaseData, 3000); // Every 3 seconds
+            setInterval(updateStreamMetrics, 2000); // Every 2 seconds
+            
+            // Simulate data changes
+            setInterval(() => {
+                // Randomly update simulated data
+                const userId = "user123";
+                const userData = firebaseSimulator.users[userId];
+                
+                if (Math.random() > 0.7) {
+                    // Add new PHQ-2 score
+                    userData.phq2.unshift({
+                        score: Math.floor(Math.random() * 7),
+                        timestamp: new Date()
+                    });
+                    
+                    // Keep only last 10 entries
+                    userData.phq2 = userData.phq2.slice(0, 10);
+                }
+                
+                if (Math.random() > 0.8) {
+                    // Add new facial result
+                    const emotions = ['happy', 'sad', 'angry', 'neutral', 'surprised', 'fear'];
+                    userData.facial_results.unshift({
+                        dominant_emotion: emotions[Math.floor(Math.random() * emotions.length)],
+                        timestamp: new Date()
+                    });
+                    
+                    userData.facial_results = userData.facial_results.slice(0, 15);
+                }
+            }, 5000);
+            
+            console.log("Dynamic Joi Validation Dashboard initialized with Firebase integration");
+        }
+
+        // Start dashboard when page loads
+        document.addEventListener('DOMContentLoaded', initializeDashboard);
+    </script>
+</body>
+</html>

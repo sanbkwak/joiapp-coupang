@@ -31,6 +31,13 @@ import { useLogout }        from './utils/logout.js';
 import JoiAppLogo           from './joiapplogo.png';
 import './css/ResultsPage.css';
 import { Link } from 'react-router-dom';
+// Import AppLayout components
+import AppLayout, { AppSection, AppButton, AppStatusMessage } from './components/layout/AppLayout';
+
+
+ 
+
+
 ChartJS.register(
   TimeScale,
   LinearScale,
@@ -43,8 +50,10 @@ ChartJS.register(
 );
 
 // If running locally, uncomment next line and comment out the prod URL.
-// const API_URL = 'http://localhost:8080';
-const API_URL = 'https://api.joiapp.org';
+ const API_URL = 'http://localhost:8080';
+// const API_URL = 'https://api.joiapp.org';
+
+
 
 export default function ResultsPage() {
  
@@ -297,7 +306,7 @@ useEffect(() => {
 
     const intervalId = setInterval(async () => {
       try {
-        const res = await fetch(`${API_URL}/coupang/status?userId=${userId}`);
+        const res = await fetch(`${API_URL}/api/v1/coupang/status?userId=${userId}`);
         if (!res.ok) {
           throw new Error(`Status fetch failed: ${res.status}`);
         }
@@ -335,7 +344,7 @@ useEffect(() => {
       if (gad2Data.length < 5 || phq2Data.length < 5) {
         setInitialLoading(true);
         const res = await fetch(
-          `${API_URL}/coupang/initial_suggestions?userId=${encodeURIComponent(userId)}`
+          `${API_URL}/api/v1/coupang/initial_suggestions?userId=${encodeURIComponent(userId)}`
         );
         const json = await res.json();
         if (json.suggestion) {
@@ -350,7 +359,7 @@ useEffect(() => {
       // 2) Otherwise proceed as before:
       // fetch quick results then enqueue deep analysis
       const quickRes = await fetch(
-        `${API_URL}/coupang/results?userId=${encodeURIComponent(userId)}`
+        `${API_URL}/api/v1/coupang/results?userId=${encodeURIComponent(userId)}`
       );
       if (!quickRes.ok) {
         throw new Error(`Failed to fetch coupang results: ${quickRes.status}`);
@@ -376,7 +385,7 @@ useEffect(() => {
 
     const fetchQuickResults = async () => {
       try {
-        const res = await fetch(`${API_URL}/coupang/results?userId=${encodeURIComponent(userId)}`);
+        const res = await fetch(`${API_URL}/api/v1/coupang/results?userId=${encodeURIComponent(userId)}`);
         if (!res.ok) {
           throw new Error(`Failed to fetch coupang results: ${res.status}`);
         }
@@ -398,7 +407,7 @@ useEffect(() => {
   const triggerDeepAnalysis = async () => {
     if (!userId) return;
     try {
-      const res = await fetch(`${API_URL}/coupang/analyze/queue?userId=${userId}`, {
+      const res = await fetch(`${API_URL}/api/v1/coupang/analyze/queue?userId=${userId}`, {
         method: 'POST'
       });
       if (!res.ok) {
@@ -418,7 +427,7 @@ useEffect(() => {
     setDeepStatus('in_progress');
     const id = setInterval(async () => {
       try {
-        const res = await fetch(`${API_URL}/coupang/analysis_progress?userId=${userId}`);
+        const res = await fetch(`${API_URL}/api/v1/coupang/analysis_progress?userId=${userId}`);
         if (!res.ok) {
           throw new Error(`Progress fetch failed: ${res.status}`);
         }
@@ -454,13 +463,13 @@ useEffect(() => {
 
     (async () => {
       try {
-        const res = await fetch(`${API_URL}/coupang/analysis_results?userId=${userId}`);
+        const res = await fetch(`${API_URL}/api/v1/coupang/analysis_results?userId=${userId}`);
         if (!res.ok) {
           throw new Error(`Deep results fetch failed: ${res.status}`);
         }
         const data = await res.json();
         setDeepResults(data);
-            const progRes = await fetch(`${API_URL}/coupang/analysis_progress?userId=${userId}`);
+            const progRes = await fetch(`${API_URL}/api/v1/coupang/analysis_progress?userId=${userId}`);
        const { summary } = await progRes.json();
        if (summary) setSummaryText(summary);
       } catch (err) {
@@ -642,7 +651,39 @@ async function fetchEmotionHistories(uid) {
       `}
     </style>
   );
-
+ const LoadingSpinner = ({ message = "Loading..." }) => (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      padding: '40px',
+      gap: '16px'
+    }}>
+      <div style={{
+        border: '4px solid #f3f3f3',
+        borderTop: '4px solid #2563eb',
+        borderRadius: '50%',
+        width: '40px',
+        height: '40px',
+        animation: 'spin 1s linear infinite'
+      }} />
+      <p style={{
+        color: '#6b7280',
+        fontSize: '16px',
+        margin: 0
+      }}>
+        {message}
+      </p>
+      <style>
+        {`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}
+      </style>
+    </div>
+  );
   const Spinner = () => (
     <div
       style={{
@@ -684,436 +725,521 @@ const phq9SummaryData = {
   }]
 };
 
+  // Results Summary Card
+  const ResultsCard = ({ title, children, variant = 'default' }) => {
+    const variants = {
+      default: { backgroundColor: '#f9fafb', borderColor: '#e5e7eb' },
+      primary: { backgroundColor: '#eff6ff', borderColor: '#3b82f6' },
+      success: { backgroundColor: '#f0fdf4', borderColor: '#22c55e' },
+      warning: { backgroundColor: '#fffbeb', borderColor: '#f59e0b' }
+    };
+
+    return (
+      <AppSection style={{
+        padding: '24px',
+        marginBottom: '24px',
+        border: `1px solid ${variants[variant].borderColor}`,
+        backgroundColor: variants[variant].backgroundColor,
+        borderRadius: '12px'
+      }}>
+        <h2 style={{
+          fontSize: '20px',
+          fontWeight: '600',
+          color: '#111827',
+          marginBottom: '16px',
+          textAlign: 'center'
+        }}>
+          {title}
+        </h2>
+        {children}
+      </AppSection>
+    );
+  };
+const ChartContainer = ({ title, children, description }) => (
+    <AppSection style={{
+      padding: '24px',
+      marginBottom: '24px',
+      border: '1px solid #e5e7eb',
+      borderRadius: '12px'
+    }}>
+      <h3 style={{
+        fontSize: '18px',
+        fontWeight: '600',
+        color: '#111827',
+        marginBottom: description ? '8px' : '16px'
+      }}>
+        {title}
+      </h3>
+      {description && (
+        <p style={{
+          fontSize: '14px',
+          color: '#6b7280',
+          marginBottom: '16px'
+        }}>
+          {description}
+        </p>
+      )}
+      <div style={{ height: '300px', position: 'relative' }}>
+        {children}
+      </div>
+    </AppSection>
+  );
   // ─────────────────────────────────────────────────────────────
   // 13) RENDER
 return (
-  <div className="container-results" style={{ paddingTop: 80 }}>
-    <SpinnerKeyframes />
-
-    {/* Header + Logout */}
-      <div className="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+   <AppLayout maxWidth={1000}>
+      {/* Custom Header */}
+      <AppSection style={{
+        padding: '16px 24px',
+        borderBottom: '1px solid #e5e7eb',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
         <div
-          className="logo-container"
           onClick={() => navigate('/dashboard')}
-          style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            cursor: 'pointer',
+            gap: '12px'
+          }}
         >
-          <img src={JoiAppLogo} alt="JoiApp Logo" style={{ height: '40px', marginRight: '12px' }} />
-          <span className="app-name" style={{ fontSize: '20px', fontWeight: 'bold' }}>JoiApp</span>
+          <img
+            src={JoiAppLogo}
+            alt="JoiApp Logo"
+            style={{ height: '32px' }}
+          />
+          <span style={{
+            fontSize: '20px',
+            fontWeight: '700',
+            color: '#111827'
+          }}>
+            JoiApp
+          </span>
         </div>
 
-        <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-          <Link to="/settings" style={{ fontSize: '16px', textDecoration: 'none', color: '#333' }}>
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+          <Link
+            to="/settings"
+            style={{
+              fontSize: '14px',
+              textDecoration: 'none',
+              color: '#6b7280',
+              fontWeight: '500'
+            }}
+          >
             설정
           </Link>
-          <button onClick={logout} className="logout-button">로그아웃</button>
+          <AppButton onClick={logout} variant="secondary">
+            로그아웃
+          </AppButton>
         </div>
-      </div>
-    {/* Page Title */}
-    <div style={{ textAlign: 'center', margin: '40px 0 20px' }}>
-      <h1 style={{ color: '#fff', fontSize: '2rem', margin: 0 }}>
-        결과 추이 분석
-      </h1>
-      {userId && (
-        <p style={{ color: '#eee', marginTop: '8px' }}>User ID: {userId}</p>
+      </AppSection>
+
+      {/* Page Title */}
+      <AppSection style={{ padding: '24px', textAlign: 'center' }}>
+        <h1 style={{
+          fontSize: '32px',
+          fontWeight: '700',
+          color: '#111827',
+          marginBottom: '8px'
+        }}>
+          결과 추이 분석
+        </h1>
+        {userId && (
+          <p style={{
+            fontSize: '14px',
+            color: '#6b7280'
+          }}>
+            User ID: {userId}
+          </p>
+        )}
+      </AppSection>
+
+      {/* Status Messages */}
+      {coupangStatus === 'in_progress' && (
+        <AppStatusMessage
+          message="분석이 진행 중입니다..."
+          type="info"
+        />
       )}
-    </div>
-
-    <div className="card">
-
-      {/*** Three‐way branch ***/}
-      { (gad2Data.length === 0 && phq2Data.length === 0) ? (
-        // Case 1: First-time user – show GAD-7/PHQ-9 + suggestion
-      <>
-          <div className="chart-container">
-            <h3>GAD-7 – 불안 척도 (7문항)</h3>
-            {gad7Data.length > 0 ? (
-              <Line data={gad7SummaryData} options={chartOptions} />
-            ) : (
-              <p style={{ color: '#eee' }}>
-                아직 불안 척도 결과가 없습니다.
-              </p>
-            )}
-          </div>
-
-          <div className="chart-container">
-            <h3>PHQ-9 – 우울 척도 (9문항)</h3>
-            {phq9Data.length > 0 ? (
-              <Line data={phq9SummaryData} options={chartOptions} />
-            ) : (
-              <p style={{ color: '#eee' }}>
-                아직 우울 척도 결과가 없습니다.
-              </p>
-            )}
-          </div>
-
-      {/* — show their raw totals too, if desired — */}
-    <div style={{ textAlign: 'center', marginBottom: 24, color: '#fff' }}>
-      {latestPhq9Entry && (
-        <p>최근 PHQ-9 총점: <strong>{phq9Values.reduce((a,b)=>a+b,0)}</strong></p>
+      {deepStatus === 'error' && (
+        <AppStatusMessage
+          message={`분석 중 오류가 발생했습니다: ${deepError || '알 수 없는 오류'}`}
+          type="error"
+        />
       )}
-      {latestGad7Entry && (
-        <p>최근 GAD-7 총점: <strong>{gad7Values.reduce((a,b)=>a+b,0)}</strong></p>
-      )}
-    </div>
 
- {/* show the numeric totals */}
-    <div style={{ textAlign:'center', marginBottom:24, color:'#fff' }}>
-      <p>최근 PHQ-9 총점: <strong>{phq9TotalScore}</strong></p>
-      <p>최근 GAD-7 총점: <strong>{gad7TotalScore}</strong></p>
-    </div>
-
-    {/* per-question bar chart for PHQ-9 */}
-    <div className="chart-container">
-      <h3>PHQ-9 세부 문항 응답</h3>
-      <Bar
-        data={{ labels: phq9Labels, datasets: [{ label:'응답 점수', data: phq9Values }] }}
-        options={{
-          indexAxis: 'y',
-          scales: { x:{ beginAtZero:true } },
-          plugins:{ legend:{ display:false } }
-        }}
-      />
-    </div>
-
-            {/* per-question bar chart for GAD-7 */}
-            <div className="chart-container">
-            <h3>GAD-7 세부 문항 응답</h3>
-            <Bar
-                data={{ labels: gad7Labels, datasets: [{ label:'응답 점수', data: gad7Values }] }}
-                options={{
-                indexAxis: 'y',
-                scales: { x:{ beginAtZero:true } },
-                plugins:{ legend:{ display:false } }
-                }}
-            />
-            </div>
-     
-
-
-
-          {deepStatus === 'complete_initial' && initialSuggestion && (
-            <div style={{
-              background: '#283593', color: '#fff', padding: '24px',
-              borderRadius: '8px', margin: '40px auto',
-              maxWidth: '700px', textAlign: 'left'
-            }}>
-             <h2
-                style={{
-                    textAlign: 'center',
-                    color: '#fff',
-                    marginBottom: '12px'   /* ← add bottom margin */
-                }}
-                >
-                초기 제안
-                </h2>
-                <p style={{ lineHeight: 1.6, color: '#eee', marginTop: '8px' }}>
-                {initialSuggestion}
-                </p>
-            </div>
-          )}
-
-          {/* 완료 버튼 */}
-          <div style={{ textAlign: 'center', marginTop: '24px' }}>
-            <button
-              onClick={() => navigate('/logout')}
-              style={{
-                background: '#43a047', border: 'none',
-                padding: '10px 20px', borderRadius: '6px',
-                color: '#fff', fontSize: '16px',
-                cursor: 'pointer'
-              }}
-            >
-              완료
-            </button>
-          </div>
-        </>
-
-                ) :   
-                
-                (gad2Data.length < 5 || phq2Data.length < 5) ? (
-            <>
-                {/* Always show the charts immediately */}
-                <div className="chart-container">
-                <h3>GAD-2 – 지난 세션 불안검사</h3>
-                <Line
-                    data={{
-                    ...processChartData(gad2Data),
-                    labels: gad2Data.map((_, i) => `Session ${i + 1}`)
-                    }}
-                    options={sessionChartOptions}
-                />
-                </div>
-                <div className="chart-container">
-                <h3>PHQ-2 – 지난 세션 우울검사</h3>
-                <Line
-                    data={{
-                    ...processChartData(phq2Data),
-                    labels: phq2Data.map((_, i) => `Session ${i + 1}`)
-                    }}
-                    options={sessionChartOptions}
-                />
-                </div>
-
-                {/* Suggestion area */}
-                {initialLoading ? (
-                // Spinner only in suggestion area
-                <div
-                    style={{
-                    background: "#283593",
-                    color: "#fff",
-                    padding: "24px",
-                    borderRadius: "8px",
-                    textAlign: "center",
-                    margin: "40px auto",
-                    maxWidth: "700px"
-                    }}
-                >
-                    <Spinner />
-                    <h2 style={{ marginTop: "16px", color: "#fff" }}>
-                    초기 제안 로딩 중…
-                    </h2>
-                </div>
-                ) : (
-                // Once loaded, show the suggestion box
-                deepStatus === "complete_initial" && initialSuggestion && (
-                    <div
-                    style={{
-                        background: "#283593",
-                        color: "#fff",
-                        padding: "24px",
-                        borderRadius: "8px",
-                        margin: "40px auto",
-                        maxWidth: "700px",
-                        textAlign: "left"
-                    }}
-                    >
-                    <h2
-                        style={{
-                        textAlign: "center",
-                        color: "#fff",
-                        marginBottom: "12px"
-                        }}
-                    >
-                        초기 제안
-                    </h2>
-                    <p style={{ lineHeight: 1.6, color: "#eee", marginTop: "8px" }}>
-                        {initialSuggestion}
-                    </p>
-                    </div>
-                )
-                )}
-
-                {/* 완료 button always shown */}
-                <div style={{ textAlign: "center", marginTop: "24px" }}>
-                <button
-                    onClick={() => navigate("/somewhere-else")}
-                    style={{
-                    background: "#43a047",
-                    border: "none",
-                    padding: "10px 20px",
-                    borderRadius: "6px",
-                    color: "#fff",
-                    fontSize: "16px",
-                    cursor: "pointer"
-                    }}
-                >
-                    완료
-                </button>
-                </div>
-            </>
-            )  : (
-        // Case 3: Full history – run deep analysis
-        <>
-          {/* Last 7 Sessions */}
-          <div className="chart-container">
-            <h3>GAD-2 – 지난 7번의 불안검사</h3>
-            <Line
-              data={{
-                ...processChartData(gad2Last7),
-                labels: gad2Last7.map((_, i) => `Session ${i + 1}`)
-              }}
-              options={sessionChartOptions}
-            />
-          </div>
-          <div className="chart-container">
-            <h3>PHQ-2 – 지난 7번의 감정검사</h3>
-            <Line
-              data={{
-                ...processChartData(phq2Last7),
-                labels: phq2Last7.map((_, i) => `Session ${i + 1}`)
-              }}
-              options={sessionChartOptions}
-            />
-          </div>
-
-          {/* Spinner */}
-          {deepStatus === 'in_progress' && (
-            <div style={{
-              background: '#283593', color: '#fff', padding: '24px',
-              borderRadius: '8px', textAlign: 'center',
-              margin: '40px auto', maxWidth: '700px'
-            }}>
-              <Spinner />
-              <h2 style={{ marginTop: '16px', color: '#fff' }}>
-                심층 예측 분석 진행 중…
-              </h2>
-              <p style={{ color: '#ddd' }}>잠시만 기다려주세요.</p>
-              <ul style={{
-                textAlign: 'left', maxWidth: '600px',
-                margin: '20px auto', color: '#eee'
-              }}>
-                {tips.map((tip, idx) => (
-                  <li key={idx} style={{ marginBottom: '8px' }}>{tip}</li>
-                ))}
-              </ul>
-              {deepError && (
-                <p style={{ color: '#ffbaba', marginTop: '12px' }}>
-                  오류: {deepError}
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Error */}
-          {deepStatus === 'error' && (
-            <>
-              <h2 style={{ color: '#ff5252' }}>
-                심층 분석 중 오류가 발생했습니다.
-              </h2>
-              <p>{deepError ?? '알 수 없는 오류가 발생했습니다.'}</p>
-              <button onClick={() => window.location.reload()} style={{
-                marginTop: '20px', background: '#ff5252', border: 'none',
-                padding: '8px 16px', borderRadius: '4px', color: '#fff',
-                cursor: 'pointer'
-              }}>
-                다시 시도
-              </button>
-            </>
-          )}
-
-          {/* Predictions & Summary */}
-          {deepStatus === 'complete' && deepResults && (
-            <>
-              {/* PHQ-2 Prediction */}
-              <div className="chart-container">
-                <h3>PHQ-2 예측 vs 실제</h3>
-                <Line
-                  data={{
-                    labels: deepResults.phq2_prediction.map((_, i) =>
-                      `Session ${i + 1}`),
-                    datasets: [
-                      {
-                        label: '예측 PHQ-2',
-                        data: deepResults.phq2_prediction,
-                        borderColor: 'rgba(75,192,192,1)',
-                        fill: false,
-                        borderDash: [5, 5]
-                      },
-                      {
-                        label: '실제 PHQ-2',
-                        data: deepResults.actual_phq2_scores,
-                        borderColor: 'rgba(255,99,132,1)',
-                        fill: false
-                      }
-                    ]
-                  }}
-                  options={{
-                    responsive: true,
-                    scales: {
-                      x: { display: true, title: { display: true, text: 'Session' } },
-                      y: { display: true, title: { display: true, text: 'Score' } }
-                    },
-                    plugins: { legend: { position: 'bottom' } }
-                  }}
-                />
-                <p>현재 PHQ-2 점수: {deepResults.current_phq2}</p>
-                <p>PHQ-2 편차: {deepResults.phq2_deviance}</p>
-              </div>
-
-              {/* GAD-2 Prediction */}
-              <div className="chart-container">
-                <h3>GAD-2 예측 vs 실제</h3>
-                <Line
-                  data={{
-                    labels: deepResults.gad2_prediction.map((_, i) =>
-                      `Session ${i + 1}`),
-                    datasets: [
-                      {
-                        label: '예측 GAD-2',
-                        data: deepResults.gad2_prediction,
-                        borderColor: 'rgba(75,192,192,1)',
-                        fill: false,
-                        borderDash: [5, 5]
-                      },
-                      {
-                        label: '실제 GAD-2',
-                        data: deepResults.actual_gad2_scores,
-                        borderColor: 'rgba(255,99,132,1)',
-                        fill: false
-                      }
-                    ]
-                  }}
-                  options={{
-                    responsive: true,
-                    scales: {
-                      x: { display: true, title: { display: true, text: 'Session' } },
-                      y: { display: true, title: { display: true, text: 'Score' } }
-                    },
-                    plugins: { legend: { position: 'bottom' } }
-                  }}
-                />
-                <p>현재 GAD-2 점수: {deepResults.current_gad2}</p>
-                <p>GAD-2 편차: {deepResults.gad2_deviance}</p>
-              </div>
-
-              {/* Trend Summary */}
-              <div style={{
-                marginTop: 40, background: '#283593',
-                padding: '20px', borderRadius: '8px',
-                color: '#fff', textAlign: 'left'
-              }}>
-                <h2 style={{ textAlign: 'center' }}>검사 트렌드 요약</h2>
-                {phq2History.length > 1 && gad2History.length > 1 ? (
-                  <>
-                    {/* trend summary logic… */}
-                    {summaryText && (
-                      <div style={{
-                        marginTop: 20, background: '#3949ab',
-                        padding: '12px', borderRadius: '6px',
-                        color: '#fff'
-                      }}>
-                        <h4 style={{ margin: 0 }}>요약 의견</h4>
-                        <p style={{ margin: '8px 0 0' }}>
-                          {summaryText}
-                        </p>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <p style={{ textAlign: 'center' }}>
-                    충분한 이력 데이터가 없습니다.
-                  </p>
-                )}
-              </div>
-
-              {/* 완료 버튼 */}
-              <div style={{ marginTop: '32px', textAlign: 'center' }}>
-                <button onClick={() => navigate('/somewhere-else')} style={{
-                  background: '#43a047', border: 'none',
-                  padding: '10px 20px', borderRadius: '6px',
-                  color: '#fff', fontSize: '16px', cursor: 'pointer'
+      {/* Main Content */}
+      <AppSection style={{ padding: '0 24px 24px' }}>
+        {/* Three-way branch logic */}
+        {(gad2Data.length === 0 && phq2Data.length === 0) ? (
+          // Case 1: First-time user
+          <>
+            <ChartContainer title="GAD-7 — 불안 척도 (7문항)">
+              {gad7Data.length > 0 ? (
+                <Line data={gad7SummaryData} options={chartOptions} />
+              ) : (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  height: '100%',
+                  color: '#6b7280'
                 }}>
-                  완료
-                </button>
-              </div>
-            </>
-          )}
-        </>
-      )}
-    </div>
-  </div>
-);
+                  아직 불안 척도 결과가 없습니다.
+                </div>
+              )}
+            </ChartContainer>
 
+            <ChartContainer title="PHQ-9 — 우울 척도 (9문항)">
+              {phq9Data.length > 0 ? (
+                <Line data={phq9SummaryData} options={chartOptions} />
+              ) : (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  height: '100%',
+                  color: '#6b7280'
+                }}>
+                  아직 우울 척도 결과가 없습니다.
+                </div>
+              )}
+            </ChartContainer>
+
+            {/* Score Summary */}
+            <ResultsCard title="최근 점수 요약" variant="primary">
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '16px',
+                textAlign: 'center'
+              }}>
+                <div>
+                  <p style={{ fontSize: '14px', color: '#6b7280', margin: '0 0 4px 0' }}>
+                    최근 PHQ-9 총점
+                  </p>
+                  <p style={{ fontSize: '24px', fontWeight: '700', color: '#111827', margin: 0 }}>
+                    {phq9TotalScore}
+                  </p>
+                </div>
+                <div>
+                  <p style={{ fontSize: '14px', color: '#6b7280', margin: '0 0 4px 0' }}>
+                    최근 GAD-7 총점
+                  </p>
+                  <p style={{ fontSize: '24px', fontWeight: '700', color: '#111827', margin: 0 }}>
+                    {gad7TotalScore}
+                  </p>
+                </div>
+              </div>
+            </ResultsCard>
+
+            {/* Detail Charts */}
+            {phq9Labels.length > 0 && (
+              <ChartContainer title="PHQ-9 세부 문항 응답">
+                <Bar
+                  data={{
+                    labels: phq9Labels,
+                    datasets: [{
+                      label: '응답 점수',
+                      data: phq9Values,
+                      backgroundColor: '#3b82f6'
+                    }]
+                  }}
+                  options={{
+                    ...chartOptions,
+                    indexAxis: 'y',
+                    scales: { x: { beginAtZero: true } },
+                    plugins: { legend: { display: false } }
+                  }}
+                />
+              </ChartContainer>
+            )}
+
+            {gad7Labels.length > 0 && (
+              <ChartContainer title="GAD-7 세부 문항 응답">
+                <Bar
+                  data={{
+                    labels: gad7Labels,
+                    datasets: [{
+                      label: '응답 점수',
+                      data: gad7Values,
+                      backgroundColor: '#f59e0b'
+                    }]
+                  }}
+                  options={{
+                    ...chartOptions,
+                    indexAxis: 'y',
+                    scales: { x: { beginAtZero: true } },
+                    plugins: { legend: { display: false } }
+                  }}
+                />
+              </ChartContainer>
+            )}
+
+            {/* Initial Suggestion */}
+            {deepStatus === 'complete_initial' && initialSuggestion && (
+              <ResultsCard title="초기 제안" variant="success">
+                <p style={{
+                  lineHeight: 1.6,
+                  color: '#374151',
+                  margin: 0
+                }}>
+                  {initialSuggestion}
+                </p>
+              </ResultsCard>
+            )}
+
+            {/* Action Buttons */}
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              justifyContent: 'center',
+              marginTop: '32px'
+            }}>
+              <AppButton onClick={() => navigate('/calculating')}>
+                완료
+              </AppButton>
+            </div>
+          </>
+
+        ) : (gad2Data.length < 5 || phq2Data.length < 5) ? (
+          // Case 2: Insufficient data
+          <>
+            <ChartContainer title="GAD-2 — 지난 세션 불안검사">
+              <Line
+                data={{
+                  ...processChartData(gad2Data),
+                  labels: gad2Data.map((_, i) => `Session ${i + 1}`)
+                }}
+                options={sessionChartOptions}
+              />
+            </ChartContainer>
+
+            <ChartContainer title="PHQ-2 — 지난 세션 우울검사">
+              <Line
+                data={{
+                  ...processChartData(phq2Data),
+                  labels: phq2Data.map((_, i) => `Session ${i + 1}`)
+                }}
+                options={sessionChartOptions}
+              />
+            </ChartContainer>
+
+            {/* Loading or Suggestion */}
+            {initialLoading ? (
+              <ResultsCard title="초기 제안 로딩 중..." variant="primary">
+                <LoadingSpinner message="분석 중입니다..." />
+              </ResultsCard>
+            ) : deepStatus === "complete_initial" && initialSuggestion && (
+              <ResultsCard title="초기 제안" variant="success">
+                <p style={{
+                  lineHeight: 1.6,
+                  color: '#374151',
+                  margin: 0
+                }}>
+                  {initialSuggestion}
+                </p>
+              </ResultsCard>
+            )}
+
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              justifyContent: 'center',
+              marginTop: '32px'
+            }}>
+              <AppButton onClick={() => navigate('/dashboard')}>
+                완료
+              </AppButton>
+            </div>
+          </>
+
+        ) : (
+          // Case 3: Full analysis
+          <>
+            <ChartContainer title="GAD-2 — 지난 7번의 불안검사">
+              <Line
+                data={{
+                  ...processChartData(gad2Last7),
+                  labels: gad2Last7.map((_, i) => `Session ${i + 1}`)
+                }}
+                options={sessionChartOptions}
+              />
+            </ChartContainer>
+
+            <ChartContainer title="PHQ-2 — 지난 7번의 감정검사">
+              <Line
+                data={{
+                  ...processChartData(phq2Last7),
+                  labels: phq2Last7.map((_, i) => `Session ${i + 1}`)
+                }}
+                options={sessionChartOptions}
+              />
+            </ChartContainer>
+
+            {/* Loading State */}
+            {deepStatus === 'in_progress' && (
+              <ResultsCard title="심층 예측 분석 진행 중..." variant="primary">
+                <LoadingSpinner message="잠시만 기다려주세요." />
+                <div style={{ marginTop: '24px' }}>
+                  <h4 style={{
+                    fontSize: '16px',
+                    fontWeight: '600',
+                    color: '#111827',
+                    marginBottom: '12px'
+                  }}>
+                    분석하는 동안 읽어보세요:
+                  </h4>
+                  <ul style={{
+                    color: '#6b7280',
+                    lineHeight: 1.6,
+                    paddingLeft: '20px'
+                  }}>
+                    {tips.map((tip, idx) => (
+                      <li key={idx} style={{ marginBottom: '8px' }}>
+                        {tip}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </ResultsCard>
+            )}
+
+            {/* Deep Analysis Results */}
+            {deepStatus === 'complete' && deepResults && (
+              <>
+                <ChartContainer title="PHQ-2 예측 vs 실제">
+                  <Line
+                    data={{
+                      labels: deepResults.phq2_prediction.map((_, i) => `Session ${i + 1}`),
+                      datasets: [
+                        {
+                          label: '예측 PHQ-2',
+                          data: deepResults.phq2_prediction,
+                          borderColor: '#10b981',
+                          fill: false,
+                          borderDash: [5, 5]
+                        },
+                        {
+                          label: '실제 PHQ-2',
+                          data: deepResults.actual_phq2_scores,
+                          borderColor: '#ef4444',
+                          fill: false
+                        }
+                      ]
+                    }}
+                    options={sessionChartOptions}
+                  />
+                  <div style={{
+                    marginTop: '16px',
+                    padding: '12px',
+                    backgroundColor: '#f9fafb',
+                    borderRadius: '6px'
+                  }}>
+                    <p style={{ margin: '0 0 4px 0', color: '#374151' }}>
+                      현재 PHQ-2 점수: <strong>{deepResults.current_phq2}</strong>
+                    </p>
+                    <p style={{ margin: 0, color: '#374151' }}>
+                      PHQ-2 편차: <strong>{deepResults.phq2_deviance}</strong>
+                    </p>
+                  </div>
+                </ChartContainer>
+
+                <ChartContainer title="GAD-2 예측 vs 실제">
+                  <Line
+                    data={{
+                      labels: deepResults.gad2_prediction.map((_, i) => `Session ${i + 1}`),
+                      datasets: [
+                        {
+                          label: '예측 GAD-2',
+                          data: deepResults.gad2_prediction,
+                          borderColor: '#10b981',
+                          fill: false,
+                          borderDash: [5, 5]
+                        },
+                        {
+                          label: '실제 GAD-2',
+                          data: deepResults.actual_gad2_scores,
+                          borderColor: '#ef4444',
+                          fill: false
+                        }
+                      ]
+                    }}
+                    options={sessionChartOptions}
+                  />
+                  <div style={{
+                    marginTop: '16px',
+                    padding: '12px',
+                    backgroundColor: '#f9fafb',
+                    borderRadius: '6px'
+                  }}>
+                    <p style={{ margin: '0 0 4px 0', color: '#374151' }}>
+                      현재 GAD-2 점수: <strong>{deepResults.current_gad2}</strong>
+                    </p>
+                    <p style={{ margin: 0, color: '#374151' }}>
+                      GAD-2 편차: <strong>{deepResults.gad2_deviance}</strong>
+                    </p>
+                  </div>
+                </ChartContainer>
+
+                {/* Summary */}
+                <ResultsCard title="검사 트렌드 요약" variant="success">
+                  {summaryText && (
+                    <div style={{
+                      padding: '16px',
+                      backgroundColor: '#f0f9ff',
+                      borderRadius: '8px',
+                      marginBottom: '24px'
+                    }}>
+                      <h4 style={{
+                        fontSize: '16px',
+                        fontWeight: '600',
+                        color: '#111827',
+                        marginBottom: '8px'
+                      }}>
+                        요약 의견
+                      </h4>
+                      <p style={{
+                        color: '#374151',
+                        lineHeight: 1.6,
+                        margin: 0
+                      }}>
+                        {summaryText}
+                      </p>
+                    </div>
+                  )}
+
+                  <div style={{
+                    display: 'flex',
+                    gap: '12px',
+                    justifyContent: 'center'
+                  }}>
+                    <AppButton
+                      onClick={() => navigate('/action-items')}
+                      variant="primary"
+                    >
+                      맞춤 액션 아이템 보기
+                    </AppButton>
+                    <AppButton
+                      onClick={() => navigate('/dashboard')}
+                      variant="secondary"
+                    >
+                      대시보드로
+                    </AppButton>
+                  </div>
+                </ResultsCard>
+              </>
+            )}
+          </>
+        )}
+      </AppSection>
+    </AppLayout>
+  );
+ 
+ 
 
  
 }

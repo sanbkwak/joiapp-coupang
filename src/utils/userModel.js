@@ -4,12 +4,14 @@ import {
   getDoc,
   setDoc,
   updateDoc,
+  deleteDoc,
   serverTimestamp,
   collection,
   query,
   where,
   getDocs,
   addDoc,
+  writeBatch,
 } from 'firebase/firestore';
 
 /**
@@ -419,6 +421,53 @@ export const getUserActivityLog = async (userId, limit = 50) => {
 };
 
 /**
+ * Deletes a user account and all associated data.
+ * WARNING: This operation is irreversible!
+ * @param {string} userId The user's Firebase UID.
+ * @returns {Promise<void>}
+ */
+export const deleteUserAccount = async (userId) => {
+  try {
+    // Log the deletion attempt first
+    await logUserActivity(userId, 'account_deletion_started', {
+      timestamp: new Date().toISOString(),
+    });
+
+    // Use a batch to ensure all deletions happen together
+    const batch = writeBatch(db);
+
+    // Delete user document
+    const userRef = doc(db, 'users', userId);
+    batch.delete(userRef);
+
+    // Get and delete all user activity logs
+    const activityRef = collection(db, 'userActivity');
+    const activityQuery = query(activityRef, where('userId', '==', userId));
+    const activitySnapshot = await getDocs(activityQuery);
+    
+    activitySnapshot.forEach((activityDoc) => {
+      batch.delete(activityDoc.ref);
+    });
+
+    // You can add more collections here if your app stores user data elsewhere
+    // For example:
+    // - User surveys/responses
+    // - User files/uploads
+    // - User preferences
+    // - Chat messages
+    // - etc.
+
+    // Execute all deletions
+    await batch.commit();
+
+    console.log('User account and associated data deleted successfully:', userId);
+  } catch (error) {
+    console.error('Error deleting user account:', error);
+    throw error;
+  }
+};
+
+/**
  * Updates the login count and last login time for an existing user.
  * @param {string} userId The Firestore document ID of the user.
  * @param {number} loginCount The current number of logins to increment.
@@ -532,6 +581,321 @@ export const initializeUserIfNeeded = async (userId) => {
     }
   } catch (error) {
     console.error('Error initializing user:', error);
+    throw error;
+  }
+};
+
+// Add these functions to your existing userModel.js file
+
+/**
+ * Validates if a user account can be deleted
+ * @param {string} userId - The user's Firebase UID
+ * @returns {Promise<Object>} Validation result with warnings and blockers
+ */
+export const validateAccountDeletion = async (userId) => {
+  try {
+    const userRef = doc(db, 'users', userId);
+    const userDoc = await getDoc(userRef);
+    
+    if (!userDoc.exists()) {
+      return { canDelete: false, reason: 'User not found' };
+    }
+    
+    const userData = userDoc.data();
+    const warnings = [];
+    const blockers = [];
+    
+    // Check for active subscriptions
+    if (userData.subscriptionStatus === 'active') {
+      warnings.push('Active subscription will be cancelled');
+    }
+    
+    // Check for pending transactions or wallet connections
+    if (userData.pendingTransactions?.length > 0) {
+      blockers.push('Pending transactions must be resolved first');
+    }
+    
+    // Check for admin/special roles
+    if (userData.role === 'admin' || userData.role === 'superadmin') {
+      blockers.push('Admin accounts require special deletion process');
+    }
+    
+    // Check if account is very new (prevent immediate regret deletions)
+    const accountAge = Date.now() - (userData.createdAt?.toDate?.()?.getTime?.() || 0);
+    const oneDay = 24 * 60 * 60 * 1000;
+    
+    if (accountAge < oneDay) {
+      warnings.push('Account is less than 24 hours old');
+    }
+    
+    // Check for high activity/value
+    if ((userData.JoiPoints || 0) > 1000) {
+      warnings.push('Account has significant JoiPoints accumulated');
+    }
+    
+    if ((userData.numberOfLogins || 0) > 50) {
+      warnings.push('Account has extensive login history');
+    }
+    
+    return {
+      canDelete: blockers.length === 0,
+      warnings,
+      blockers,
+      recommendGracePeriod: warnings.length > 0
+    };
+    
+  } catch (error) {
+    console.error('Validation error:', error);
+    return { 
+      canDelete: false, 
+      reason: 'Validation failed',
+      error: error.message 
+    };
+  }
+};
+
+/**
+ * Gets current account deletion status
+ * @param {string} userId - The user's Firebase UID
+ * @returns {Promise<Object>} Current deletion status
+ */
+export const getAccountDeletionStatus = async (userId) => {
+  try {
+    const userRef = doc(db, 'users', userId);
+    const userDoc = await getDoc(userRef);
+    
+    if (!userDoc.exists()) {
+      return { status: 'not_found' };
+    }
+    
+    const userData = userDoc.data();
+    
+    return {
+      status: userData.accountStatus || 'active',
+      scheduledDeletionDate: userData.scheduledDeletionDate?.toDate?.() || null,
+      deletionReason: userData.deletionReason || null,
+      canCancel: userData.scheduledDeletionDate ? 
+        new Date() < userData.scheduledDeletionDate.toDate() : false
+    };
+  } catch (error) {
+    console.error('Error getting deletion status:', error);
+    return { status: 'error', error: error.message };
+  }
+};
+
+/**
+ * Schedules account deletion with grace period
+ * @param {string} userId - The user's Firebase UID
+ * @param {number} gracePeriodDays - Number of days before deletion
+ * @param {string} reason - Reason for deletion
+ * @returns {Promise<Object>} Scheduling result
+ */
+export const scheduleAccountDeletion = async (userId, gracePeriodDays, reason = 'user_requested') => {
+  try {
+    const deletionDate = new Date();
+    deletionDate.setDate(deletionDate.getDate() + gracePeriodDays);
+
+    const userRef = doc(db, 'users', userId);
+    
+    await updateDoc(userRef, {
+      accountStatus: 'scheduled_for_deletion',
+      scheduledDeletionDate: deletionDate,
+      deletionReason: reason,
+      scheduledAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+
+    // Log the scheduling
+    await logUserActivity(userId, 'account_deletion_scheduled', {
+      scheduledDeletionDate: deletionDate.toISOString(),
+      gracePeriodDays,
+      reason
+    });
+
+    return {
+      success: true,
+      scheduled: true,
+      deletionDate: deletionDate.toISOString(),
+      gracePeriodDays,
+      cancellationDeadline: deletionDate.toISOString()
+    };
+  } catch (error) {
+    console.error('Error scheduling deletion:', error);
+    throw error;
+  }
+};
+
+/**
+ * Cancels a scheduled account deletion
+ * @param {string} userId - The user's Firebase UID
+ * @returns {Promise<void>}
+ */
+export const cancelAccountDeletion = async (userId) => {
+  try {
+    const userRef = doc(db, 'users', userId);
+    
+    await updateDoc(userRef, {
+      accountStatus: 'active',
+      scheduledDeletionDate: null,
+      deletionReason: null,
+      scheduledAt: null,
+      cancellationDate: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+
+    await logUserActivity(userId, 'account_deletion_cancelled', {
+      cancelledAt: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error cancelling deletion:', error);
+    throw error;
+  }
+};
+
+/**
+ * Enhanced version of deleteUserAccount with options
+ * @param {string} userId - The user's Firebase UID
+ * @param {Object} options - Deletion options
+ * @returns {Promise<Object>} Deletion result
+ */
+export const deleteUserAccountEnhanced = async (userId, options = {}) => {
+  const {
+    gracePeriodDays = 0,
+    reason = 'user_requested'
+  } = options;
+
+  try {
+    // Log deletion attempt
+    await logUserActivity(userId, 'account_deletion_started', {
+      timestamp: new Date().toISOString(),
+      reason,
+      gracePeriodDays,
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'Unknown'
+    });
+
+    // Handle grace period
+    if (gracePeriodDays > 0) {
+      return await scheduleAccountDeletion(userId, gracePeriodDays, reason);
+    }
+
+    // Immediate deletion - use existing logic but with enhanced logging
+    const batch = writeBatch(db);
+    let documentsDeleted = 0;
+
+    // Delete user document
+    const userRef = doc(db, 'users', userId);
+    batch.delete(userRef);
+    documentsDeleted++;
+
+    // Delete user activity logs
+    const activityRef = collection(db, 'userActivity');
+    const activityQuery = query(activityRef, where('userId', '==', userId));
+    const activitySnapshot = await getDocs(activityQuery);
+    
+    activitySnapshot.forEach((activityDoc) => {
+      batch.delete(activityDoc.ref);
+      documentsDeleted++;
+    });
+
+    // Add other collections as your app grows
+    const additionalCollections = [
+      'userSurveys', 
+      'userResponses', 
+      'userFiles',
+      'userNotifications',
+      'chatMessages'
+    ];
+    
+    for (const collectionName of additionalCollections) {
+      try {
+        const collectionRef = collection(db, collectionName);
+        const collectionQuery = query(collectionRef, where('userId', '==', userId));
+        const collectionSnapshot = await getDocs(collectionQuery);
+        
+        collectionSnapshot.forEach((docSnapshot) => {
+          batch.delete(docSnapshot.ref);
+          documentsDeleted++;
+        });
+      } catch (error) {
+        console.warn(`Collection ${collectionName} might not exist:`, error);
+      }
+    }
+
+    // Execute batch deletion
+    await batch.commit();
+
+    const result = {
+      success: true,
+      deletedAt: new Date().toISOString(),
+      documentsDeleted,
+      scheduled: false
+    };
+
+    console.log('Account deletion completed:', result);
+    return result;
+
+  } catch (error) {
+    console.error('Account deletion failed:', error);
+    
+    // Log the failure
+    try {
+      await logUserActivity(userId, 'account_deletion_failed', {
+        error: error.message,
+        timestamp: new Date().toISOString()
+      });
+    } catch (logError) {
+      console.warn('Could not log deletion failure:', logError);
+    }
+
+    throw new Error(`Account deletion failed: ${error.message}`);
+  }
+};
+
+/**
+ * Processes scheduled deletions (would typically run via Cloud Function/cron)
+ * @returns {Promise<Object>} Processing result
+ */
+export const processScheduledDeletions = async () => {
+  try {
+    const now = new Date();
+    const usersRef = collection(db, 'users');
+    const scheduledQuery = query(
+      usersRef, 
+      where('accountStatus', '==', 'scheduled_for_deletion')
+    );
+    
+    const scheduledSnapshot = await getDocs(scheduledQuery);
+    const processedDeletions = [];
+    
+    for (const userDoc of scheduledSnapshot.docs) {
+      const userData = userDoc.data();
+      const scheduledDate = userData.scheduledDeletionDate?.toDate?.();
+      
+      if (scheduledDate && now >= scheduledDate) {
+        try {
+          await deleteUserAccountEnhanced(userDoc.id, { gracePeriodDays: 0 });
+          processedDeletions.push({
+            userId: userDoc.id,
+            status: 'deleted',
+            scheduledDate: scheduledDate.toISOString()
+          });
+        } catch (error) {
+          processedDeletions.push({
+            userId: userDoc.id,
+            status: 'failed',
+            error: error.message
+          });
+        }
+      }
+    }
+    
+    return {
+      processedCount: processedDeletions.length,
+      deletions: processedDeletions
+    };
+    
+  } catch (error) {
+    console.error('Error processing scheduled deletions:', error);
     throw error;
   }
 };

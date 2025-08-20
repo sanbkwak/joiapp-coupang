@@ -1,7 +1,8 @@
 {
   "hosting": [
     {
-      "target": "coupang",
+      "site": "joi-react-soroban",
+      
       "public": "build",
       "ignore": [
         "firebase.json",

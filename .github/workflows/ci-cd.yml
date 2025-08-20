@@ -1,0 +1,199 @@
+# .github/workflows/ci-cd.yml
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ develop, main ]
+  pull_request:
+    branches: [ develop, main ]
+
+env:
+  NODE_VERSION: '18'
+  NEXT_PUBLIC_ENVIRONMENT: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
+
+jobs:
+  # Continuous Integration
+  ci:
+    name: Continuous Integration
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run TypeScript check
+      run: npm run type-check
+      
+    - name: Run ESLint
+      run: npm run lint
+      
+    - name: Run Prettier check
+      run: npm run format:check
+      
+    - name: Run tests
+      run: npm run test
+      
+    - name: Build application
+      run: npm run build
+      env:
+        NEXT_PUBLIC_API_BASE_URL: ${{ secrets.NEXT_PUBLIC_API_BASE_URL }}
+        NEXT_PUBLIC_FEATURE_STELLAR: false
+        NEXT_PUBLIC_FEATURE_EMAIL_VERIFICATION: true
+        
+    - name: Upload build artifacts
+      if: success()
+      uses: actions/upload-artifact@v3
+      with:
+        name: build-${{ github.sha }}
+        path: .next/
+        retention-days: 7
+
+  # Security Scan
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: ci
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run Snyk to check for vulnerabilities
+      uses: snyk/actions/node@master
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      with:
+        args: --severity-threshold=high
+        
+    - name: Run npm audit
+      run: npm audit --audit-level=high
+
+  # Deploy to Staging (develop branch)
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [ci, security]
+    if: github.ref == 'refs/heads/develop'
+    environment: staging
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: build-${{ github.sha }}
+        path: .next/
+        
+    - name: Deploy to Vercel Staging
+      uses: amondnet/vercel-action@v25
+      with:
+        vercel-token: ${{ secrets.VERCEL_TOKEN }}
+        vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+        vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+        vercel-args: '--env NEXT_PUBLIC_ENVIRONMENT=staging'
+        working-directory: ./
+        
+    - name: Health Check - Legal Pages
+      run: |
+        echo "Checking legal pages..."
+        curl -f https://staging.joiapp.com/legal/privacy || exit 1
+        curl -f https://staging.joiapp.com/legal/terms || exit 1
+        curl -f https://staging.joiapp.com/docs/api || exit 1
+        echo "All legal/docs pages are accessible"
+        
+    - name: Update deployment status
+      if: always()
+      run: |
+        if [ $? -eq 0 ]; then
+          echo "✅ Staging deployment successful"
+        else
+          echo "❌ Staging deployment failed"
+          exit 1
+        fi
+
+  # Deploy to Production (main branch)
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [ci, security]
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: build-${{ github.sha }}
+        path: .next/
+        
+    - name: Deploy to Vercel Production
+      uses: amondnet/vercel-action@v25
+      with:
+        vercel-token: ${{ secrets.VERCEL_TOKEN }}
+        vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+        vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+        vercel-args: '--prod --env NEXT_PUBLIC_ENVIRONMENT=production'
+        working-directory: ./
+        
+    - name: Health Check - Legal Pages
+      run: |
+        echo "Checking production legal pages..."
+        curl -f https://joiapp.com/legal/privacy || exit 1
+        curl -f https://joiapp.com/legal/terms || exit 1
+        curl -f https://joiapp.com/docs/api || exit 1
+        echo "All legal/docs pages are accessible"
+        
+    - name: Notify deployment success
+      if: success()
+      run: |
+        echo "🚀 Production deployment successful"
+        # Add Slack/Discord notification here
+        
+    - name: Rollback on failure
+      if: failure()
+      run: |
+        echo "⚠️ Production deployment failed - consider rollback"
+        # Add rollback logic here
+        exit 1
+
+  # Post-deployment monitoring
+  monitor:
+    name: Post-deployment Monitoring
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always() && (needs.deploy-staging.result == 'success' || needs.deploy-production.result == 'success')
+    
+    steps:
+    - name: Wait for deployment stabilization
+      run: sleep 30
+      
+    - name: Check application health
+      run: |
+        ENVIRONMENT=${{ github.ref_name == 'main' && 'production' || 'staging' }}
+        BASE_URL=${{ github.ref_name == 'main' && 'https://joiapp.com' || 'https://staging.joiapp.com' }}
+        
+        echo "Monitoring $ENVIRONMENT environment at $BASE_URL"
+        
+        # Check main pages
+        curl -f $BASE_URL/ || exit 1
+        curl -f $BASE_URL/login || exit 1
+        curl -f $BASE_URL/register || exit 1
+        
+        # Check API health
+        curl -f $BASE_URL/api/health || exit 1
+        
+        echo "✅ All health checks passed"

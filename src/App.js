@@ -14,6 +14,7 @@ import ProfilePage       from './ProfilePage';
 import SettingsPage      from './SettingsPage';
 import AdminPage         from './Admin/AdminPage';
 import PersonalPage       from './PersonalPage';
+import ActionItemsPage from './ActionItemsPage';
 
 // Stellar wallet components
 import ConnectWallet     from './components/ConnectWallet';
@@ -79,7 +80,9 @@ const App = () => {
           <Route path="/profile"     element={<ProfilePage />} />
           <Route path="/settings"    element={<SettingsPage />} />
           <Route path="/personal"    element={<PersonalPage />} />
-          
+          <Route path="/action-items" element={<ActionItemsPage />} />
+
+
           {/* (Optional) keep your old admin UI on a different path */}
           <Route path="/legacy-admin" element={<AdminPage />} />
 

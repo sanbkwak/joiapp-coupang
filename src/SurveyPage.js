@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { auth, db }          from './firebaseConfig';
+import { auth, db } from './firebaseConfig';
 import {
   collection,
   updateDoc,
@@ -9,13 +9,17 @@ import {
   doc,
   getDoc,
   serverTimestamp
-
-}      from 'firebase/firestore';
-
+} from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import AppLayout, { 
+  AppSection, 
+  AppFormGroup, 
+  AppButton, 
+  AppStatusMessage 
+} from './components/layout/AppLayout';
 import JoiAppLogo from './joiapplogo.png'; 
 import { useLogout } from './utils/logout.js';
-import { Link } from 'react-router-dom';
 
 // Company‐wide stats for every question
 const COMPANY_STATS = {
@@ -124,7 +128,7 @@ const QUESTIONS = [
       B: "가끔 확인하지만 대부분은 휴식한다",
       C: "자주 근무를 생각한다",
       D: "즉시 응답해야 할 것 같은 압박감이 든다",
-      E: "항상 ‘ON’ 상태여서 벗어날 수 없다"
+      E: "항상 'ON' 상태여서 벗어날 수 없다"
     }
   },
   {
@@ -231,228 +235,525 @@ const QUESTIONS = [
       E: "전혀 지원받지 못함"
     }
   }
-]
+];
+
+// Header Component for consistency
+const SurveyHeader = ({ onLogoClick, onLogout }) => (
+  <div style={{
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '16px 24px',
+    borderBottom: '1px solid #e5e7eb',
+    backgroundColor: 'white'
+  }}>
+    <div
+      onClick={onLogoClick}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        cursor: 'pointer',
+        gap: '12px'
+      }}
+    >
+      <img 
+        src={JoiAppLogo} 
+        alt="JoiApp Logo" 
+        style={{
+          height: '32px',
+          width: '32px',
+          borderRadius: '6px'
+        }}
+      />
+      <span style={{
+        fontSize: '18px',
+        fontWeight: '700',
+        color: '#111827'
+      }}>
+        JoiApp
+      </span>
+    </div>
+
+    <div style={{
+      display: 'flex',
+      gap: '16px',
+      alignItems: 'center'
+    }}>
+      <Link 
+        to="/settings" 
+        style={{
+          fontSize: '14px',
+          textDecoration: 'none',
+          color: '#6b7280',
+          fontWeight: '500'
+        }}
+      >
+        설정
+      </Link>
+      <AppButton
+        variant="outline"
+        onClick={onLogout}
+        style={{
+          padding: '6px 12px',
+          fontSize: '14px',
+          borderColor: '#dc2626',
+          color: '#dc2626'
+        }}
+      >
+        로그아웃
+      </AppButton>
+    </div>
+  </div>
+);
+
+// Question Component
+const QuestionCard = ({ question, answer, onAnswerChange, otherText, onOtherTextChange }) => (
+  <div style={{
+    marginBottom: '24px',
+    padding: '24px',
+    border: '1px solid #e5e7eb',
+    borderRadius: '12px',
+    backgroundColor: 'white'
+  }}>
+    <h3 style={{
+      fontSize: '16px',
+      fontWeight: '600',
+      color: '#111827',
+      marginBottom: '16px',
+      lineHeight: '1.5'
+    }}>
+      {question.id}. {question.text}
+    </h3>
+
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      {Object.entries(question.options).map(([opt, label]) => (
+        <label
+          key={opt}
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '12px',
+            padding: '12px',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            transition: 'background-color 0.15s ease',
+            backgroundColor: answer === opt ? '#eff6ff' : 'transparent',
+            border: answer === opt ? '1px solid #3b82f6' : '1px solid transparent'
+          }}
+          onMouseEnter={(e) => {
+            if (answer !== opt) {
+              e.target.style.backgroundColor = '#f9fafb';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (answer !== opt) {
+              e.target.style.backgroundColor = 'transparent';
+            }
+          }}
+        >
+          <input
+            type="radio"
+            name={`q${question.id}`}
+            value={opt}
+            checked={answer === opt}
+            onChange={() => onAnswerChange(question.id, opt)}
+            required
+            style={{
+              marginTop: '2px',
+              accentColor: '#3b82f6'
+            }}
+          />
+          <span style={{
+            fontSize: '15px',
+            lineHeight: '1.5',
+            color: '#374151'
+          }}>
+            <strong style={{ color: '#1f2937' }}>{opt}.</strong> {label}
+          </span>
+        </label>
+      ))}
+    </div>
+
+    {question.allowFreeText && answer === 'E' && (
+      <div style={{ marginTop: '16px' }}>
+        <textarea
+          placeholder="직접 입력해주세요..."
+          value={otherText || ''}
+          onChange={(e) => onOtherTextChange(question.id, e.target.value)}
+          style={{
+            width: '100%',
+            minHeight: '80px',
+            padding: '12px',
+            borderRadius: '8px',
+            border: '1px solid #d1d5db',
+            fontSize: '14px',
+            lineHeight: '1.5',
+            resize: 'vertical',
+            boxSizing: 'border-box',
+            outline: 'none'
+          }}
+          onFocus={(e) => {
+            e.target.style.borderColor = '#3b82f6';
+          }}
+          onBlur={(e) => {
+            e.target.style.borderColor = '#d1d5db';
+          }}
+        />
+      </div>
+    )}
+  </div>
+);
 
 export default function SurveyPage() {
-  const [answers, setAnswers] = useState({})
-  const [otherTexts, setOtherTexts] = useState({})
-  const [submitted, setSubmitted] = useState(false)
+  const [answers, setAnswers] = useState({});
+  const [otherTexts, setOtherTexts] = useState({});
+  const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-   const navigate = useNavigate();
-    const logout = useLogout();
+  const navigate = useNavigate();
+  const logout = useLogout();
+
   const handleChange = (qid, opt) => {
-    setAnswers(a => ({ ...a, [qid]: opt }))
-  }
+    setAnswers(a => ({ ...a, [qid]: opt }));
+  };
+
   const handleOtherText = (qid, text) => {
-    setOtherTexts(t => ({ ...t, [qid]: text }))
-  }
+    setOtherTexts(t => ({ ...t, [qid]: text }));
+  };
 
-const handleSubmit = async e => {
-  e.preventDefault();
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
 
-  if (Object.keys(answers).length !== QUESTIONS.length) {
-    alert("모든 질문에 답변해 주세요.");
-    return;
-  }
+    if (Object.keys(answers).length !== QUESTIONS.length) {
+      setError("모든 질문에 답변해 주세요.");
+      return;
+    }
 
+    setLoading(true);
 
     const payload = QUESTIONS.map(q => ({
       questionId: q.id,
-      answer:     answers[q.id],
-      freeText:
-        q.allowFreeText && answers[q.id] === "E"
-          ? (otherTexts[q.id] || "")
-          : null
+      answer: answers[q.id],
+      freeText: q.allowFreeText && answers[q.id] === "E"
+        ? (otherTexts[q.id] || "")
+        : null
     }));
 
     try {
-      // 1) add a new survey doc
+      // 1) Add a new survey doc
       await addDoc(collection(db, "surveys"), {
         createdAt: serverTimestamp(),
         responses: payload
       });
-      // 2) update this user's lastSurveyDate
+      
+      // 2) Update this user's lastSurveyDate
       const uid = auth.currentUser.uid;
       await updateDoc(doc(db, "users", uid), {
         lastSurveyDate: serverTimestamp()
       });
+      
       setSubmitted(true);
     } catch (e) {
       console.error("Failed to save survey:", e);
-      alert("제출에 실패했습니다. 다시 시도해 주세요.");
+      setError("제출에 실패했습니다. 다시 시도해 주세요.");
+    } finally {
+      setLoading(false);
     }
   };
 
   if (!submitted) {
     return (
-      <div style={{ maxWidth:700, margin:"40px auto", padding:20 }}>
-        <div className="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-  <div
-    className="logo-container"
-    onClick={() => navigate('/dashboard')}
-    style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
-  >
-    <img src={JoiAppLogo} alt="JoiApp Logo" style={{ height: '40px', marginRight: '12px' }} />
-    <span className="app-name" style={{ fontSize: '20px', fontWeight: 'bold' }}>JoiApp</span>
-  </div>
+      <div style={{
+        minHeight: '100vh',
+        backgroundColor: '#f9fafb'
+      }}>
+        <SurveyHeader
+          onLogoClick={() => navigate('/dashboard')}
+          onLogout={logout}
+        />
 
-  <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-  
-    <button onClick={logout} className="logout-button">로그아웃</button>
-  </div>
-</div>
-
-        {/* 🛡️ 익명 보장 안내 */}
         <div style={{
-          marginBottom:24, padding:12,
-          background: '#282c34d', borderRadius:6
+          maxWidth: '800px',
+          margin: '0 auto',
+          padding: '24px'
         }}>
-          <strong>🛡️ 익명 보장 안내</strong>
-          <p style={{ margin:'8px 0 0' }}>
-            이 설문조사는 완전한 익명으로 진행됩니다. 여러분의 응답은 개인 식별 정보와 전혀 연결되지 않으며, 안전하게 보호됩니다.
+          {/* Privacy Notice */}
+          <div style={{
+            marginBottom: '32px',
+            padding: '20px',
+            background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+            borderRadius: '12px',
+            border: '1px solid #93c5fd'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              marginBottom: '12px'
+            }}>
+              <span style={{ fontSize: '20px' }}>🛡️</span>
+              <strong style={{
+                fontSize: '16px',
+                color: '#1e40af'
+              }}>
+                익명 보장 안내
+              </strong>
+            </div>
+            <p style={{
+              margin: 0,
+              fontSize: '14px',
+              color: '#1e40af',
+              lineHeight: '1.5'
+            }}>
+              이 설문조사는 완전한 익명으로 진행됩니다. 여러분의 응답은 개인 식별 정보와 전혀 연결되지 않으며, 안전하게 보호됩니다.
+            </p>
+          </div>
+
+          {/* Title */}
+          <div style={{
+            textAlign: 'center',
+            marginBottom: '32px'
+          }}>
+            <h1 style={{
+              fontSize: '28px',
+              fontWeight: '700',
+              color: '#111827',
+              margin: '0 0 8px 0'
+            }}>
+              직원 설문조사
+            </h1>
+            <p style={{
+              fontSize: '16px',
+              color: '#6b7280',
+              margin: 0
+            }}>
+              정신건강과 업무환경에 관한 익명 설문입니다
+            </p>
+          </div>
+
+          {error && (
+            <AppStatusMessage 
+              message={error}
+              type="error"
+              onClose={() => setError(null)}
+            />
+          )}
+
+          <form onSubmit={handleSubmit}>
+            {QUESTIONS.map(question => (
+              <QuestionCard
+                key={question.id}
+                question={question}
+                answer={answers[question.id]}
+                onAnswerChange={handleChange}
+                otherText={otherTexts[question.id]}
+                onOtherTextChange={handleOtherText}
+              />
+            ))}
+
+            <div style={{
+              textAlign: 'center',
+              marginTop: '40px',
+              marginBottom: '40px'
+            }}>
+              <AppButton
+                type="submit"
+                variant="primary"
+                disabled={loading}
+                style={{
+                  padding: '16px 32px',
+                  fontSize: '16px',
+                  background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)'
+                }}
+              >
+                {loading ? '제출 중...' : '설문조사 제출하기'}
+              </AppButton>
+            </div>
+          </form>
+        </div>
+
+        {/* Footer */}
+        <div style={{
+          padding: '20px',
+          textAlign: 'center',
+          borderTop: '1px solid #e5e7eb',
+          backgroundColor: 'white'
+        }}>
+          <p style={{
+            fontSize: '12px',
+            color: '#9ca3af',
+            margin: 0
+          }}>
+            © Szupia, Inc. 2019
           </p>
         </div>
-        <h1 style={{ textAlign: 'center', marginBottom: '32px' }}>직원 설문조사</h1>
-
-        <form onSubmit={handleSubmit}>
-          {QUESTIONS.map(q => (
-            <fieldset key={q.id}   
-                  style={{
-                  marginBottom: '32px',
-                  padding: '16px',
-                  border: '1px solid #ccc',
-                  borderRadius: '8px',
-                  backgroundColor: 'transparent'
-                }}>
-              <legend style={{
-                        fontWeight: 600,
-                        fontSize: '17px',
-                        marginBottom: '12px'
-                      }}>
-                {q.id}. {q.text}
-              </legend>
-
-              {Object.entries(q.options).map(([opt,label])=>(
-                <label key={opt}   style={{
-                        display: 'block',
-                        margin: '12px 0',
-                        fontSize: '16px',
-                        lineHeight: '1.6'
-                      }}>
-                  <input
-                    type="radio"
-                    name={`q${q.id}`}
-                    value={opt}
-                    checked={answers[q.id] === opt}
-                    onChange={()=>handleChange(q.id,opt)}
-                    required
-                  />{" "}
-                  <strong>{opt}.</strong> {label}
-                </label>
-              ))}
-
-              {q.allowFreeText && answers[q.id]==='E' && (
-                <textarea
-                  placeholder="직접 입력"
-                  value={otherTexts[q.id]||''}
-                  onChange={e=>handleOtherText(q.id,e.target.value)}
-                  style={{
-                      width: '100%',
-                      marginTop: 12,
-                      padding: '10px',
-                      borderRadius: '6px',
-                      border: '1px solid #ccc',
-                      fontSize: '15px',
-                      lineHeight: '1.4'
-                    }}
-                />
-              )}
-            </fieldset>
-          ))}
-          <button
-            type="submit"
-            style={{
-              display:'block', margin:'24px auto',
-              padding:'12px 24px', background:'#283593',
-              color:'#fff', border:'none', borderRadius:6,
-              cursor:'pointer'
-            }}
-          >제출하기</button>
-        </form>
       </div>
-    )
+    );
   }
 
-  // After submit, show stats
-  const q1 = 1
-  const choice1 = answers[q1]
+  // Results view
+  const q1 = 1;
+  const choice1 = answers[q1];
+
   return (
-    
-    <div style={{ maxWidth: 600, margin: '40px auto', padding: 20 }}>
-      <div className="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-  <div
-    className="logo-container"
-    onClick={() => navigate('/dashboard')}
-    style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
-  >
-    <img src={JoiAppLogo} alt="JoiApp Logo" style={{ height: '40px', marginRight: '12px' }} />
-    <span className="app-name" style={{ fontSize: '20px', fontWeight: 'bold' }}>JoiApp</span>
-  </div>
+    <div style={{
+      minHeight: '100vh',
+      backgroundColor: '#f9fafb'
+    }}>
+      <SurveyHeader
+        onLogoClick={() => navigate('/dashboard')}
+        onLogout={logout}
+      />
 
-  <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-    <Link to="/settings" style={{ fontSize: '16px', textDecoration: 'none', color: '#333' }}>
-      설정
-    </Link>
-    <button onClick={logout} className="logout-button">로그아웃</button>
-  </div>
-</div>
-
-      <h1 style={{ textAlign: 'center' }}>통계 보기</h1>
-      <h2>1. 업무로 인해 지쳤다고 느낀 빈도 (예시)</h2>
-      <p>당신의 선택: <strong>{choice1}. {QUESTIONS[0].options[choice1]}</strong></p>
-      <ul style={{ listStyle: 'none', padding: 0 }}>
-        {Object.entries(QUESTIONS[0].options).map(([opt,label]) => (
-          <li key={opt} style={{
-            background: opt===choice1 ? '#283593':'#eee',
-            color: opt===choice1 ? '#fff' :'#333',
-            padding: '8px 12px',
-            borderRadius: 4,
-            margin: '4px 0',
-            display: 'flex',
-            justifyContent: 'space-between'
-          }}>
-            <span><strong>{opt}.</strong> {label}</span>
-            <span>{COMPANY_STATS[opt]}%</span>
-          </li>
-        ))}
-      </ul>
       <div style={{
-        marginTop: 32,
-        padding: 20,
-        background: '#f9f9f9',
-        border: '1px dashed #ccc',
-        textAlign: 'center'
+        maxWidth: '700px',
+        margin: '0 auto',
+        padding: '32px 24px'
       }}>
-      {/* ← HERE is where we navigate on button click */}
-        <button
-          onClick={() => navigate('/questions')}
-          style={{
-            background: '#283593',
-            color: '#fff',
-            border: 'none',
-            padding: '10px 20px',
-            borderRadius: 4,
-            cursor: 'pointer',
-            fontSize: '1rem'
-          }}
-        >
-          다음으로 이동
-        </button>
-      </div>
+        <AppLayout maxWidth={700}>
+          <AppSection>
+            <div style={{ padding: '32px' }}>
+              <div style={{
+                textAlign: 'center',
+                marginBottom: '32px'
+              }}>
+                <div style={{
+                  width: '64px',
+                  height: '64px',
+                  borderRadius: '50%',
+                  backgroundColor: '#10b981',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 16px auto'
+                }}>
+                  <span style={{ fontSize: '24px', color: 'white' }}>✓</span>
+                </div>
+                <h1 style={{
+                  fontSize: '24px',
+                  fontWeight: '700',
+                  color: '#111827',
+                  margin: '0 0 8px 0'
+                }}>
+                  설문조사 완료
+                </h1>
+                <p style={{
+                  fontSize: '16px',
+                  color: '#6b7280',
+                  margin: 0
+                }}>
+                  소중한 의견 감사합니다!
+                </p>
+              </div>
 
-            <div className="footer">
-        <p>© Szupia, Inc. 2019</p>
+              <div style={{
+                marginBottom: '32px',
+                padding: '24px',
+                backgroundColor: '#f9fafb',
+                borderRadius: '12px',
+                border: '1px solid #e5e7eb'
+              }}>
+                <h2 style={{
+                  fontSize: '18px',
+                  fontWeight: '600',
+                  color: '#111827',
+                  marginBottom: '16px'
+                }}>
+                  결과 예시: 업무로 인한 피로감
+                </h2>
+                
+                <p style={{
+                  fontSize: '14px',
+                  color: '#6b7280',
+                  marginBottom: '16px'
+                }}>
+                  당신의 선택: <strong style={{ color: '#111827' }}>
+                    {choice1}. {QUESTIONS[0].options[choice1]}
+                  </strong>
+                </p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {Object.entries(QUESTIONS[0].options).map(([opt, label]) => (
+                    <div
+                      key={opt}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '12px 16px',
+                        borderRadius: '8px',
+                        backgroundColor: opt === choice1 ? '#3b82f6' : '#ffffff',
+                        color: opt === choice1 ? '#ffffff' : '#374151',
+                        border: '1px solid #e5e7eb',
+                        fontWeight: opt === choice1 ? '600' : '400'
+                      }}
+                    >
+                      <span>
+                        <strong>{opt}.</strong> {label}
+                      </span>
+                      <span style={{
+                        fontWeight: '600',
+                        backgroundColor: opt === choice1 ? 'rgba(255,255,255,0.2)' : '#f3f4f6',
+                        color: opt === choice1 ? '#ffffff' : '#374151',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '12px'
+                      }}>
+                        {COMPANY_STATS[opt]}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{
+                textAlign: 'center',
+                padding: '24px',
+                backgroundColor: '#f0f9ff',
+                borderRadius: '12px',
+                border: '1px solid #7dd3fc'
+              }}>
+                <p style={{
+                  fontSize: '14px',
+                  color: '#0369a1',
+                  marginBottom: '16px',
+                  lineHeight: '1.5'
+                }}>
+                  설문조사가 완료되었습니다.<br />
+                  이제 정신건강 체크를 시작해보세요!
+                </p>
+                
+                <AppButton
+                  variant="primary"
+                  onClick={() => navigate('/questions')}
+                  style={{
+                    background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
+                    padding: '12px 24px'
+                  }}
+                >
+                  정신건강 체크 시작하기
+                </AppButton>
+              </div>
+            </div>
+          </AppSection>
+        </AppLayout>
+
+        {/* Footer */}
+        <div style={{
+          padding: '20px',
+          textAlign: 'center'
+        }}>
+          <p style={{
+            fontSize: '12px',
+            color: '#9ca3af',
+            margin: 0
+          }}>
+            © Szupia, Inc. 2019
+          </p>
+        </div>
       </div>
     </div>
-  )
+  );
 }

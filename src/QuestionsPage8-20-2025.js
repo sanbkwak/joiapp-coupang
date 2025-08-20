@@ -1,16 +1,16 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLogout } from './utils/logout.js';
-import { auth, db } from './firebaseConfig';
-import { collection, addDoc, query, doc,  getDocs, getDoc, orderBy, setDoc } from 'firebase/firestore';
+import { auth, db } from './firebaseConfig.js';
+import { collection, addDoc, query, doc,  getDocs, orderBy, setDoc, getDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import './css/QuestionsPage.css';
 import { GAD7_QUESTIONS, PHQ9_QUESTIONS, GAD2_QUESTIONS, PHQ2_QUESTIONS, ANSWER_OPTIONS, questionList1, questionList2, YES_NO_OPTIONS } from './utils/questions.js';
 //import { getPublicKey } from '@stellar/freighter-api';
 import JoiAppLogo from './joiapplogo.png'; 
-import AppLayout, { AppSection, AppButton, AppFormGroup, AppInput, AppStatusMessage } from './components/layout/AppLayout';
 import { Link } from 'react-router-dom';
 import { getAuth } from "firebase/auth";
+
 
 
 const QuestionsPage = () => {
@@ -50,29 +50,36 @@ const QuestionsPage = () => {
 
     const [recordingLog, setRecordingLog] = useState([]);
     const [isPHQ9Completed, setIsPHQ9Completed] = useState(false);
-        const [showConsentModal, setShowConsentModal] = useState(false);
-const [consentType, setConsentType] = useState(null);
-    const [consentState, setConsentState] = useState({
-        camera: true,
-        microphone: true,
-        voiceRecording: true,
-        emotionAI: false,
-        surveySubmission: true,
-    });
- const inputRefs = useRef({});
-    const auth = getAuth();
-    const user = auth.currentUser;
-    const [userId, setUserId] = useState(null);
 
+    const [showConsentModal, setShowConsentModal] = useState(false);
+const [consentType, setConsentType] = useState(null); // 'camera' or 'microphone'
+
+const [consentState, setConsentState] = useState({
+  camera: true,
+  microphone: true,
+  voiceRecording: true,
+  emotionAI: false,
+  surveySubmission: true,
+});
+
+  // 1) create a ref container for all text inputs
+  const inputRefs = useRef({});
+const auth = getAuth();
+const user = auth.currentUser;
+
+
+    const [userId, setUserId] = useState(null);
     const recognition = useMemo(() => {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         const rec = new SpeechRecognition();
-        rec.lang = 'ko-KR'; // Set language to Korean for the questions
+       rec.lang = 'ko-KR'; // Set language to Korean for the questions
+    //    rec.lang = 'en-US';
         rec.interimResults = true;
         rec.maxAlternatives = 1;
         return rec;
     }, []);
     recognition.lang = 'ko-KR'; // Set language to Korean for the questions
+// recognition.lang = 'en-US';
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
 
@@ -85,9 +92,6 @@ const [consentType, setConsentType] = useState(null);
             console.log("Media stream disabled.");
         }
     }, []);
-
-
-
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (user) {
@@ -104,30 +108,34 @@ const [consentType, setConsentType] = useState(null);
         };
     }, [navigate, disableMedia]);
 
+            useEffect(() => {
+            const fetchConsents = async () => {
+                if (!user?.uid) return;
 
-       useEffect(() => {
-        const fetchConsents = async () => {
-            if (!user?.uid) return;
-            try {
+                try {
                 const docRef = doc(db, "users", user.uid, "currentConsents");
                 const snap = await getDoc(docRef);
                 if (snap.exists()) {
                     setConsentState(snap.data());
                 }
-            } catch (error) {
+                } catch (error) {
                 console.error("Consent fetch error:", error);
-            }
-        };
-        fetchConsents();
-    }, [user?.uid]);
+                }
+            };
 
-   const handleMediaPermissions = async () => {
+            fetchConsents();
+            }, [user?.uid]);
+
+
+    const handleMediaPermissions = async () => {
+            // ① Don’t even ask the browser if the user has revoked camera consent
         if (!consentState.camera) {
-            alert("카메라 사용에 동의하지 않으셨습니다. 설정에서 허용해주세요.");
-            return;
+        alert("카메라 사용에 동의하지 않으셨습니다. 설정에서 허용해주세요.");
+        return;
         }
         try {
             mediaStream.current = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    
             if (videoRef.current) {
                 videoRef.current.srcObject = mediaStream.current;
                 videoRef.current.onloadedmetadata = () => {
@@ -135,15 +143,16 @@ const [consentType, setConsentType] = useState(null);
                     console.log("카메라와 마이크를 활성화.");
                 };
                 setIsCameraEnabled(true);
-                startRecording();
+     
+                startRecording(); // If applicable
                 addLog("카메라와 마이크를 활성화");
                 if (userId) {
-                    await addDoc(collection(db, "users", userId, "consents"), {
-                        type: "camera",
-                        granted: true,
-                        timestamp: new Date()
-                    });
-                }
+                await addDoc(collection(db, "users", userId, "consents"), {
+                type: "camera",
+                granted: true,
+                timestamp: new Date()
+                });
+            }
             } else {
                 console.error("Video reference is not defined.");
             }
@@ -153,24 +162,37 @@ const [consentType, setConsentType] = useState(null);
         }
     };
     const handleAudioMediaPermissions = async () => {
+            // ① Don’t even ask the browser if the user has revoked mic consent
+        if (!consentState.microphone) {
+        alert("마이크 사용에 동의하지 않으셨습니다. 설정에서 허용해주세요.");
+        return;
+        }
         try {
             // Request access to the microphone only
             mediaStream.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
     
             if (mediaStream.current) {
-                console.log("Microphone is now enabled.");
+                console.log("마이크 활성화.");
     
                 // Optionally, start recording if needed
                 startRecording(); // If applicable
     
                 // Update log and state accordingly
-                addLog("Microphone enabled.");
+                addLog("마이크 활성화");
+                      // ✅ Log Microphone Consent in Firestore
+                if (userId) {
+                    await addDoc(collection(db, "users", userId, "consents"), {
+                    type: "microphone",
+                    granted: true,
+                    timestamp: new Date()
+                    });
+                }
             } else {
                 console.error("Media stream could not be created.");
             }
         } catch (error) {
-         console.error("카메라와 마이크를 활성화 해주세요", error);
-            alert("카메라와 마이크를 활성화 해주세요.");
+            console.error("Unable to access the microphone:", error);
+            alert("마이크 활성화 허락");
         }
     };
     const stopAllMedia = () => {
@@ -194,13 +216,13 @@ const [consentType, setConsentType] = useState(null);
     };
     // Function to start audio recording
     const startAudioRecording = async () => {
-        console.log("in startAudioRecording");
- //       stopAllMedia();
-       // mediaStream.current = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-         audioStream.current = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
-        // show it to user
-  //      audio.src = window.URL.createObjectURL(audioStream);
-  //      this.audio.play();
+            // ① Skip entirely if user revoked mic consent
+        if (!consentState.microphone) {
+            console.warn("마이크 사용 동의가 없어 녹음을 시작하지 않습니다.");
+            return;
+            }
+            console.log("in startAudioRecording");
+            audioStream.current = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
 
         if (audioStream.current) {
             console.log("in startAudioRecording audioStream.curren");
@@ -326,7 +348,7 @@ const [consentType, setConsentType] = useState(null);
 
         recognition.onerror = (event) => {
             console.error("Voice recognition error:", event.error);
-            alert("음성을 인식하지 못했습니다. 다시 시도해 주세요.");
+            alert("Voice recognition Failed. Please try again");
             setIsVoiceActive(false);
             if (audioMediaRecorderRef.current) {
                 pauseAudioRecording();
@@ -334,57 +356,47 @@ const [consentType, setConsentType] = useState(null);
         };
     }, [recognition, setAnswers]);
 
-    const handleAudioUpload = async (audioBlob) => {
-        if (!audioBlob || audioBlob.size === 0) {
-            console.error("Audio is too short or empty. Please record a longer audio.");
-            return;
-        }
 
-        const formData = new FormData();
-        formData.append('audio', audioBlob, 'recordedAudio.webm');
-        formData.append('userId', userId);
-        try {
-            setIsWaitingForVoiceResults(true); // Show waiting indicator
-   //         const API_URL = "http://localhost:8080";
-          const API_URL = "https://api.joiapp.org";
-            const response = await fetch(`${API_URL}/analyzeVoice`, {
+const handleAudioUpload = async (audioBlob) => {
+  if (!audioBlob || audioBlob.size === 0) {
+    console.error("Audio is too short or empty. Please record a longer audio.");
+    return;
+  }
 
+  const formData = new FormData();
+  formData.append('audio', audioBlob, 'recordedAudio.webm');
+  formData.append('userId', userId);
 
-   //        const response = await fetch('https://api.joiapp.org/analyzeVoice', {
-    // const response = await fetch('https://joiappbackend-56278236485.us-central1.run.app/analyzeVoice', {
-                method: 'POST',
-                body: formData,
-                headers: { 'Accept': 'application/json' },
-            });
+  setIsWaitingForVoiceResults(true); // Show waiting indicator
 
-            if (response.ok) {
-                const responseData = await response.json(); // Parse the response as JSON
-                console.log("Audio analysis response:", responseData);
-    
-                if (responseData && responseData.emotions) {
-                    // Set the state with the response data
-                    setVoiceResults({
-                        dominant_emotions: [Object.keys(responseData.emotions).reduce((a, b) => 
-                            responseData.emotions[a] > responseData.emotions[b] ? a : b)],
-                        results: Object.entries(responseData.emotions).map(([emotion, value]) => ({ emotion, value }))
-                    });
-    
-                    console.log("Dominant Voice Emotions:", responseData.emotions);
-                    addLog("Voice data uploaded successfully. Dominant emotions: " + 
-                            Object.keys(responseData.emotions).reduce((a, b) => 
-                                responseData.emotions[a] > responseData.emotions[b] ? a : b));
-                } else {
-                    console.error("Unexpected response structure. Expected object with 'emotions' property.");
-                }
-            } else {
-                console.error("Audio upload failed:", await response.text());
-            }  
-        } catch (error) {
-            console.error("Error uploading audio:", error.message);
-        } finally {
-            setIsWaitingForVoiceResults(false); // Hide waiting indicator
-        }
-    };
+  // Fire-and-forget to the Coupang Flask endpoint
+   const API_URL = "https://api.joiapp.org"; // or "http://localhost:8080" in dev
+  //  const API_URL = "http://localhost:8080";
+  fetch(`${API_URL}/coupang/analyzeVoice`, {
+    method: 'POST',
+    body: formData
+  })
+    .then((res) => {
+      if (!res.ok) {
+        // If server responded with an error status, log it
+        res.text().then(text => {
+          addLog(`Audio upload failed: ${res.status} ${res.statusText} – ${text}`);
+        });
+      } else {
+        addLog("Voice analysis request sent successfully.");
+      }
+    })
+    .catch((err) => {
+      console.error("Error uploading audio:", err);
+      addLog(`Error uploading audio: ${err.message}`);
+    })
+    .finally(() => {
+      setIsWaitingForVoiceResults(false); // Hide waiting indicator
+    });
+
+  // We do not await anything here. As soon as fetch() is triggered,
+  // this function returns and the UI can continue.
+};
     const stopAudioRecording = () => {
         if (audioMediaRecorderRef.current && isRecording) {
             try {
@@ -397,9 +409,17 @@ const [consentType, setConsentType] = useState(null);
         }
     };
     const startRecording = () => {
-        if (!videoRef.current || !videoRef.current.srcObject) {
-          alert("Please enable camera and microphone first.");
-          return;
+
+
+        // ① Skip entirely if user revoked camera consent
+        if (!consentState.camera) {
+        console.warn("카메라 사용 동의가 없어 녹화를 시작하지 않습니다.");
+        return;
+        }
+        // ② Also bail if there's no live video stream
+        if (!videoRef.current?.srcObject) {
+        console.error("녹화할 비디오 스트림이 없습니다. 녹화를 건너뜁니다.");
+        return;
         }
         
         // Make sure we have a valid stream in videoRef.current.srcObject
@@ -485,68 +505,58 @@ const [consentType, setConsentType] = useState(null);
         }
     };
 */
+const handleVideoUpload = async (videoBlob) => {
+  // Log and mark that recording has stopped
+  addLog('Recording stopped.');
+  setIsRecordingCompleted(true);
 
-    const handleVideoUpload = async (videoBlob) => {
-        addLog('Recording stopped.');
-        setIsRecordingCompleted(true);
+  if (!userId) {
+    addLog('User is not authenticated. Cannot upload video.');
+    return;
+  }
+  addLog(`questionsPage: auth.currentUser.uid: ${userId}`);
 
-        if (!userId) {
-            addLog('User is not authenticated. Cannot upload video.');
-            return;
-        }
+  // Build the FormData exactly as before
+  const formData = new FormData();
+  formData.append('video', videoBlob, 'recordedVideo.webm');
+  formData.append('userId', userId);
 
-//                const userId = auth.currentUser.uid;
-  //    const userId = userPublicKey;
-        addLog(`questionsPage: auth.currentUser.uid: ${userId}`);
+  // Instead of awaiting the fetch, we just fire it off and forget.
+  // Any response‐level logging happens in .then() / .catch().
+  setIsWaitingForResults(true); // (Optional) show spinner or similar.
 
-        const formData = new FormData();
-        formData.append('video', videoBlob, 'recordedVideo.webm');
-        formData.append('userId', userId);
-        try {
-            setIsWaitingForResults(true); // Show waiting indicator
-      //      const API_URL = "http://localhost:8080";
-            const API_URL = "https://api.joiapp.org";
-            const response = await fetch(`${API_URL}/analyzeVideo`, {
-          //  const response = await fetch('https://api.joiapp.org/analyze', {
-        //        const response = await fetch('https://joiappbackend-56278236485.us-central1.run.app/analyze', {
-                method: 'POST',
-                body: formData,
-                headers: { 'Accept': 'application/json' },
-            });
-        
-            if (response.ok) {
-                const responseText = await response.text();
-                console.log("Response video text:", responseText);
-        
-                let result;
-                try {
-                    result = JSON.parse(responseText);
-                } catch (error) {
-                    console.error("Failed to parse JSON:", error);
-                    return; // You could add more error handling logic here if needed.
-                }
-        
-                console.log("Parsed result:", result);
-        
-                // Check if result is an object with expected properties
-                if (result && result.dominant_facial_emotions && result.results) {
-                    // Use the result properties directly
-                    setResults(result);
-                    console.log("Dominant Facial Emotions:", result.dominant_facial_emotions);
-                    addLog("Video uploaded successfully. Dominant emotions: " + result.dominant_facial_emotions.join(", "));
-                } else {
-                    console.error("Unexpected response structure. Expected object with 'dominant_emotions' and 'results' properties.");
-                }
-        
-            } else {
-                addLog("Upload failed: " + await response.text());
-            }
-        } catch (error) {
-            addLog("Error uploading video: " + error.message);
-        } finally {
-            setIsWaitingForResults(false); // Hide waiting indicator
-        }
-    }
+ const API_URL = 'https://api.joiapp.org'; // or "http://localhost:8080" in dev
+//   const API_URL = 'http://localhost:8080';
+
+
+  fetch(`${API_URL}/coupang/analyzeVideo`, {
+    method: 'POST',
+    body: formData,
+    // Note: we do not set headers here because FormData sets its own Content-Type
+  })
+    .then((res) => {
+      if (!res.ok) {
+        // Log the HTTP status text if the server responded with 4xx/5xx
+        res.text().then(text => {
+          addLog(`Video upload failed: ${res.status} ${res.statusText} ‒ ${text}`);
+        });
+      } else {
+        addLog('Video analysis request sent successfully.');
+      }
+    })
+    .catch((err) => {
+      // Network or unexpected error
+      console.error('Error uploading video:', err);
+      addLog(`Error uploading video: ${err.message}`);
+    })
+    .finally(() => {
+      // Turn off the spinner immediately (we’re “fire‐and‐forget”)
+      setIsWaitingForResults(false);
+    });
+
+  // We do NOT await anything here. As soon as fetch() is kicked off,
+  // this function returns and your UI can continue immediately.
+};
 
     const stopRecording = () => {
         if (mediaRecorderRef.current) {
@@ -574,25 +584,37 @@ const [consentType, setConsentType] = useState(null);
         disableMedia();
     };
 
-    const handleVoiceButtonClick = async (question) => {
-        // Ensure media permissions are granted before starting recording
-        if (!mediaStream.current) {
-            await handleAudioMediaPermissions();
+const handleVoiceButtonClick = useCallback(
+    async (question) => {
+              // focus the corresponding input
+      // ① Ensure mic consent before anything
+      if (!consentState.microphone) {
+        alert("음성 입력(마이크 사용)에 동의하지 않으셨습니다. 설정에서 허용해주세요.");
+        return;
+      }
+      // focus the corresponding input
+      const inputEl = inputRefs.current[question];
+      if (inputEl) {
+        inputEl.focus();
+      }
+
+      // now start media permission flow and recognition:
+      if (!mediaStream.current) {
+        await handleAudioMediaPermissions();
+      }
+      if (mediaStream.current) {
+        if (!isRecording) {
+          startAudioRecording();
+          setIsRecording(true);
         }
-    
-        if (mediaStream.current) {
-            // Start audio recording if it's not already recording
-            if (!isRecording) {
-                startAudioRecording();
-                setIsRecording(true);
-            }
-    
-            // Start voice recognition for the specific question
-            startVoiceRecognition(question);
-        } else {
-            alert("Unable to access microphone. Please check your permissions.");
-        }
-    };
+        startVoiceRecognition(question);
+      } else {
+        alert("마이크에 접근할 수 없습니다. 권한을 확인해주세요.");
+      }
+    },
+    [isRecording, startAudioRecording, startVoiceRecognition, handleAudioMediaPermissions,consentState.microphone]
+  );
+
     
 
 /*
@@ -609,10 +631,10 @@ const [consentType, setConsentType] = useState(null);
 */
 
     const handleAnswerChange = (question, value) => {
-        if (!isCameraEnabled) {
-            alert("Please enable the camera and microphone first.");
-            handleMediaPermissions(); // Prompt to enable camera
-            startRecording();
+    // Only insist on camera if both consented and not yet enabled
+        if (consentState.camera && !isCameraEnabled) {
+            alert("카메라 사용에 동의하셨다면 활성화해주세요.");
+            handleMediaPermissions();
             return;
         }
       //  setAnswers(prevAnswers => ({ ...prevAnswers, [question]: value }));
@@ -649,16 +671,22 @@ const [consentType, setConsentType] = useState(null);
     };
 
     const areAllQuestionsAnswered = (currentAnswers) => {
-        // Define the total number of questions that need to be answered
         const requiredQuestions = currentQuestionSet === 'PHQ2_GAD2_QuestionList1'
             ? [...PHQ2_QUESTIONS, ...GAD2_QUESTIONS, ...questionList1]
             : [...PHQ9_QUESTIONS, ...GAD7_QUESTIONS, ...questionList2];
     
-        // Check if every required question has an answer
-        return requiredQuestions.every((q) => currentAnswers.hasOwnProperty(q.question));
-    };
+            const unanswered = requiredQuestions.filter(q => !currentAnswers.hasOwnProperty(q.question));
 
- const handleSubmit = async () => {
+    
+        if (unanswered.length > 0) {
+            const missingList = unanswered.map((q, i) => `${i + 1}. ${q.question}`).join('\n');
+            alert(`Please answer all questions before continuing.\nMissing:\n${missingList}`);
+            return false;
+        }
+        return true;
+    };
+    
+    const saveAnswersToFirestore = async () => {
         if (!validateAnswers()) {
             alert("Please answer all the questions before submitting.");
             return;
@@ -767,7 +795,7 @@ const [consentType, setConsentType] = useState(null);
                 });
             }
 
-           // alert("Answers saved successfully");
+    //        alert("Answers saved successfully");
             navigate('/results');
         } catch (error) {
             alert("Failed to save answers. Please try again.");
@@ -806,174 +834,71 @@ const [consentType, setConsentType] = useState(null);
         };
     }, [navigate, disableMedia]);
 
-     // Custom Modal Component using AppLayout style
-    const ConsentModal = () => {
-        if (!showConsentModal) return null;
-
-        return (
-            <div style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 1000
-            }}>
-                <div style={{
-                    backgroundColor: 'white',
-                    borderRadius: '12px',
-                    padding: '24px',
-                    maxWidth: '400px',
-                    margin: '16px',
-                    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
-                }}>
-                    <h3 style={{
-                        fontSize: '18px',
-                        fontWeight: '600',
-                        color: '#111827',
-                        marginBottom: '16px'
-                    }}>
-                        카메라 및 마이크 접근 허용
-                    </h3>
-                    <p style={{
-                        fontSize: '14px',
-                        color: '#6b7280',
-                        marginBottom: '24px',
-                        lineHeight: '1.5'
-                    }}>
-                        서비스 이용을 위해 {consentType === 'camera' ? '카메라' : '마이크'} 접근이 필요합니다.<br />
-                        동의하시겠습니까?
-                    </p>
-                    <div style={{
-                        display: 'flex',
-                        gap: '12px',
-                        justifyContent: 'flex-end'
-                    }}>
-                        <AppButton
-                            variant="outline"
-                            onClick={() => setShowConsentModal(false)}
-                        >
-                            아니오
-                        </AppButton>
-                        <AppButton
-                            onClick={async () => {
-                                setShowConsentModal(false);
-                                if (consentType === 'camera') {
-                                    await handleMediaPermissions();
-                                } else if (consentType === 'microphone') {
-                                    await handleAudioMediaPermissions();
-                                }
-                            }}
-                        >
-                            예, 허용합니다
-                        </AppButton>
-                    </div>
-                </div>
-            </div>
-        );
-    };
-
-      const renderQuestions = (questions) => {
+    const renderQuestions = (questions) => {
         return questions.map((item, index) => (
-            <AppFormGroup key={index} label={item.question} style={{ marginBottom: '24px' }}>
+            <div key={index} className="question-container">
+                <p>{item.question}</p>
                 {item.answerType === 'radio' ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {ANSWER_OPTIONS.map(option => (
-                            <label key={option.value} style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px',
-                                cursor: 'pointer',
-                                padding: '8px',
-                                borderRadius: '6px',
-                                backgroundColor: answers[item.question] === option.value ? '#f0f9ff' : 'transparent',
-                                border: `1px solid ${answers[item.question] === option.value ? '#2563eb' : '#e5e7eb'}`
-                            }}>
-                                <input
-                                    type="radio"
-                                    name={`${item.question}-${index}`}
-                                    value={option.value}
-                                    checked={answers[item.question] === option.value}
-                                    onChange={() => handleAnswerChange(item.question, option.value)}
-                                    style={{ margin: 0 }}
-                                />
-                                <span style={{
-                                    fontSize: '14px',
-                                    color: '#374151'
-                                }}>
-                                    {option.label}
-                                </span>
-                            </label>
-                        ))}
-                    </div>
+                    ANSWER_OPTIONS.map(option => (
+                        <label key={option.value}>
+                            <input
+                                type="radio"
+                                name={`${item.question}-${index}`}
+                                value={option.value}
+                                checked={answers[item.question] === option.value}
+                                onChange={() => handleAnswerChange(item.question, option.value)}
+                            />
+                            {option.label}
+                        </label>
+                    ))
                 ) : item.answerType === 'yesNo' ? (
-                    <div style={{ display: 'flex', gap: '12px' }}>
-                        {YES_NO_OPTIONS.map(option => (
-                            <label key={option.value} style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px',
-                                cursor: 'pointer',
-                                padding: '12px 16px',
-                                borderRadius: '6px',
-                                backgroundColor: answers[item.question] === option.value ? '#f0f9ff' : '#f9fafb',
-                                border: `1px solid ${answers[item.question] === option.value ? '#2563eb' : '#e5e7eb'}`,
-                                flex: 1,
-                                justifyContent: 'center'
-                            }}>
-                                <input
-                                    type="radio"
-                                    name={`${item.question}-${index}`}
-                                    value={option.value}
-                                    checked={answers[item.question] === option.value}
-                                    onChange={() => handleAnswerChange(item.question, option.value)}
-                                    style={{ margin: 0 }}
-                                />
-                                <span style={{
-                                    fontSize: '14px',
-                                    fontWeight: '500',
-                                    color: '#374151'
-                                }}>
-                                    {option.label}
-                                </span>
-                            </label>
-                        ))}
-                    </div>
-                ) : (
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                        <AppInput
+                    YES_NO_OPTIONS.map(option => (
+                        <label key={option.value}>
+                            <input
+                                type="radio"
+                                name={`${item.question}-${index}`}
+                                value={option.value}
+                                checked={answers[item.question] === option.value}
+                                onChange={() => handleAnswerChange(item.question, option.value)}
+                            />
+                            {option.label}
+                        </label>
+                    ))
+                ) :  (
+                    <div>
+                            <input
                             type="text"
                             value={answers[item.question] || ''}
                             onChange={(e) => handleAnswerChange(item.question, e.target.value)}
-                            style={{ flex: 1 }}
+                            // assign the ref here:
                             ref={el => {
                                 if (el) inputRefs.current[item.question] = el;
                             }}
-                        />
-                        <AppButton
+                            />
+                            <button
                             onClick={() => handleVoiceButtonClick(item.question)}
                             disabled={isVoiceActive}
-                            variant="outline"
-                            style={{ whiteSpace: 'nowrap' }}
-                        >
+                            >
                             음성 입력 시작
-                        </AppButton>
-                    </div>
+                            </button>
+                        </div>
                 )}
-            </AppFormGroup>
-        ));
-    };
 
+
+            </div>
+                  
+        ));
+     
+    };
 
     const addLog = (message) => {
         setRecordingLog(prevLog => [...prevLog, message]);
     };
 
     const handleRecordingCompleted = () => {
+            
+        if (!areAllQuestionsAnswered(answers)) return;
+        
         if (mediaRecorderRef.current) {
             try {
                 mediaRecorderRef.current.stop();
@@ -999,192 +924,282 @@ const [consentType, setConsentType] = useState(null);
     
         disableMedia();
     };
-    
+    const hasSafetyRedFlag = () => {
+        const redFlagQuestions = questionList2.filter(q => q.answerType === 'yesNo');
+        return redFlagQuestions.some(q => (answers[q.question] || '').toLowerCase() === 'yes');
+
+      };
+      
+// Replace handleRecordingCompleted + stopAudioRecording in onClick
+const handleSubmit = async () => {
+    if (!validateAnswers()) {
+            alert("Please answer all the questions before submitting.");
+            return;
+        }
+  // 1) First, stop camera/video & audio recorders (if they exist)
+  if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+    try {
+      mediaRecorderRef.current.stop();
+    } catch (err) {
+      console.warn("Error stopping video recorder:", err);
+    }
+  }
+  if (audioMediaRecorderRef.current && audioMediaRecorderRef.current.state !== "inactive") {
+    try {
+      audioMediaRecorderRef.current.stop();
+    } catch (err) {
+      console.warn("Error stopping audio recorder:", err);
+    }
+  }
+
+  // 2) Build the two blobs (video + audio):
+  const videoBlob =
+    recordedChunksRef.current.length > 0
+      ? new Blob(recordedChunksRef.current, { type: "video/webm" })
+      : null;
+
+  const audioBlob =
+    recordedAudioChunksRef.current.length > 0
+      ? new Blob(recordedAudioChunksRef.current, { type: "audio/webm" })
+      : null;
+
+  setIsRecordingCompleted(true);
+  setIsWaitingForResults(true);
+
+     const API_URL = 'https://api.joiapp.org'; // or "http://localhost:8080" in dev
+  // const API_URL = 'http://localhost:8080';
+
+
+
+
+  // 3) Fire-and-forget: POST to both endpoints
+  if (videoBlob && userId) {
+    const vidForm = new FormData();
+    vidForm.append("video", videoBlob, "recordedVideo.webm");
+    vidForm.append("userId", userId);
+
+      fetch(`${API_URL}/coupang/analyzeVideo`, {
+      method: "POST",
+      body: vidForm,
+    })
+      .then((res) => {
+        if (!res.ok) {
+          res.text().then((txt) =>
+            addLog(`Video‐upload failed: ${res.status} ${res.statusText} – ${txt}`)
+          );
+        } else {
+          addLog("✅ Video analysis request sent.");
+        }
+      })
+      .catch((err) => {
+        console.error("Error uploading video:", err);
+        addLog(`❌ Video‐upload error: ${err.message}`);
+      });
+  }
+
+  if (audioBlob && userId) {
+    const audForm = new FormData();
+    audForm.append("audio", audioBlob, "recordedAudio.webm");
+    audForm.append("userId", userId);
+  fetch(`${API_URL}/coupang/analyzeVoice`, {
+      method: "POST",
+      body: audForm,
+    })
+      .then((res) => {
+        if (!res.ok) {
+          res.text().then((txt) =>
+            addLog(`Audio‐upload failed: ${res.status} ${res.statusText} – ${txt}`)
+          );
+        } else {
+          addLog("✅ Voice analysis request sent.");
+        }
+      })
+      .catch((err) => {
+        console.error("Error uploading audio:", err);
+        addLog(`❌ Audio‐upload error: ${err.message}`);
+      })
+      .finally(() => {
+        setIsWaitingForVoiceResults(false);
+      });
+  }
+saveAnswersToFirestore()
+  // 4) Immediately navigate to /results (or keep spinner—your choice)
+  navigate("/results");
+};
+
+    const proceedWithCameraConsent = async () => {
+    try {
+        mediaStream.current = await navigator.mediaDevices.getUserMedia({ video: true });
+        if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream.current;
+        videoRef.current.play();
+        setIsCameraEnabled(true);
+        startRecording();
+        addLog("카메라 활성화");
+
+        if (userId) {
+            await addDoc(collection(db, "users", userId, "consents"), {
+            type: "camera",
+            granted: true,
+            timestamp: new Date()
+            });
+        }
+        }
+    } catch (error) {
+        console.error("카메라 허용 실패:", error);
+        alert("카메라 접근이 거부되었습니다.");
+    }
+    };
+
+    const proceedWithMicrophoneConsent = async () => {
+    try {
+        mediaStream.current = await navigator.mediaDevices.getUserMedia({ audio: true });
+        startRecording();
+        addLog("마이크 활성화");
+
+        if (userId) {
+        await addDoc(collection(db, "users", userId, "consents"), {
+            type: "microphone",
+            granted: true,
+            timestamp: new Date()
+        });
+        }
+    } catch (error) {
+        console.error("마이크 허용 실패:", error);
+        alert("마이크 접근이 거부되었습니다.");
+    }
+    };
 
     return (
-        <AppLayout maxWidth={800}>
-            {/* Custom Header */}
-            <AppSection style={{
-                padding: '16px 24px',
-                borderBottom: '1px solid #e5e7eb',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-            }}>
-                <div
-                    onClick={() => navigate('/dashboard')}
-                    style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        cursor: 'pointer',
-                        gap: '12px'
-                    }}
-                >
-                    <img
-                        src={JoiAppLogo}
-                        alt="JoiApp Logo"
-                        style={{ height: '32px' }}
-                    />
-                    <span style={{
-                        fontSize: '20px',
-                        fontWeight: '700',
-                        color: '#111827'
-                    }}>
-                        JoiApp
-                    </span>
+        <div className="questions-page">
+        <div className="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div
+            className="logo-container"
+            onClick={() => navigate('/dashboard')}
+            style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+        >
+            <img src={JoiAppLogo} alt="JoiApp Logo" style={{ height: '40px', marginRight: '12px' }} />
+            <span className="app-name" style={{ fontSize: '20px', fontWeight: 'bold' }}>JoiApp</span>
+        </div>
+
+        <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+            <Link to="/settings" style={{ fontSize: '16px', textDecoration: 'none', color: '#333' }}>
+            설정
+            </Link>
+            <button onClick={logout} className="logout-button">로그아웃</button>
+        </div>
+        </div>
+
+
+
+            <div className="form-container">
+                
+            <p style={{ fontSize: '24px' }}>다음에 답하시요</p>
+
+                
+                <div className="button-group">
+         
+                <button onClick={() => { setConsentType('camera'); setShowConsentModal(true); }}>
+                카메라 허용 요청
+                </button>
+                <button onClick={() => { setConsentType('microphone'); setShowConsentModal(true); }}>
+                마이크 허용 요청
+                </button>
+
+    {/*            <button onClick={startRecording}>녹화시작</button>
+                    <button onClick={stopRecording}>녹화중지</button>
+        */}
+ 
                 </div>
-
-                <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                    <Link
-                        to="/settings"
-                        style={{
-                            fontSize: '14px',
-                            textDecoration: 'none',
-                            color: '#6b7280',
-                            fontWeight: '500'
-                        }}
-                    >
-                        설정
-                    </Link>
-                    <AppButton onClick={logout} variant="secondary">
-                        로그아웃
-                    </AppButton>
+    
+                <div className="video-container">
+                    <video ref={videoRef} style={{ width: '100%', maxHeight: '400px', border: '2px solid #ccc' }} autoPlay playsInline></video>
                 </div>
-            </AppSection>
-
-            {/* Status Messages */}
-            {isWaitingForResults && (
-                <AppStatusMessage
-                    message="비디오 분석 중..."
-                    type="info"
-                />
-            )}
-            {isWaitingForVoiceResults && (
-                <AppStatusMessage
-                    message="음성 분석 중..."
-                    type="info"
-                />
-            )}
-
-            {/* Main Content */}
-            <AppSection style={{ padding: '24px' }}>
-                <h1 style={{
-                    fontSize: '24px',
-                    fontWeight: '700',
-                    color: '#111827',
-                    marginBottom: '24px',
-                    textAlign: 'center'
-                }}>
-                    다음에 답하시요
-                </h1>
-
-                {/* Media Controls */}
-                <div style={{
-                    display: 'flex',
-                    gap: '12px',
-                    marginBottom: '24px',
-                    justifyContent: 'center'
-                }}>
-                    <AppButton
-                        onClick={() => { setConsentType('camera'); setShowConsentModal(true); }}
-                        variant="outline"
-                    >
-                        카메라 허용 요청
-                    </AppButton>
-                    <AppButton
-                        onClick={() => { setConsentType('microphone'); setShowConsentModal(true); }}
-                        variant="outline"
-                    >
-                        마이크 허용 요청
-                    </AppButton>
+    
+                <div className="log-container">
+                    <h2>Activity Log</h2>
+                    <ul>
+                        {recordingLog.map((log, index) => (
+                            <li key={index}>{log}</li>
+                        ))}
+                    </ul>
                 </div>
-
-                {/* Video Container */}
-                <div style={{
-                    marginBottom: '24px',
-                    borderRadius: '12px',
-                    overflow: 'hidden',
-                    border: '2px solid #e5e7eb'
-                }}>
-                    <video
-                        ref={videoRef}
-                        style={{
-                            width: '100%',
-                            maxHeight: '400px',
-                            display: 'block'
-                        }}
-                        autoPlay
-                        playsInline
-                    />
-                </div>
-
-                {/* Activity Log */}
-                {recordingLog.length > 0 && (
-                    <div style={{
-                        backgroundColor: '#f9fafb',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '8px',
-                        padding: '16px',
-                        marginBottom: '24px'
-                    }}>
-                        <h3 style={{
-                            fontSize: '16px',
-                            fontWeight: '600',
-                            color: '#111827',
-                            marginBottom: '12px'
-                        }}>
-                            Activity Log
-                        </h3>
-                        <div style={{
-                            maxHeight: '150px',
-                            overflowY: 'auto'
-                        }}>
-                            {recordingLog.map((log, index) => (
-                                <div key={index} style={{
-                                    fontSize: '12px',
-                                    color: '#6b7280',
-                                    padding: '2px 0'
-                                }}>
-                                    {log}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+            </div>
+            <div className="form-container">
+            <p style={{ fontSize: '20px' }}></p>
+                {currentQuestionSet === 'PHQ2_GAD2_QuestionList1' ? (
+                    <>
+                    
+                        {renderQuestions(PHQ2_QUESTIONS.map(q => ({ question: q.question, answerType: 'radio' })))}
+    
+                   
+                        {renderQuestions(GAD2_QUESTIONS.map(q => ({ question: q.question, answerType: 'radio' })))}
+    
+                      
+                        {renderQuestions(questionList1.map(q => q.answerType === 'yesNo' ? { question: q.question, answerType: 'yesNo' } : { question: q.question, answerType: 'text' }))}
+                    </>
+                ) : currentQuestionSet === 'PHQ9_GAD7_QuestionList2' && (
+                    <>
+                        
+                        {renderQuestions(PHQ9_QUESTIONS.map(q => ({ question: q.question, answerType: 'radio', heading: 'PHQ-9' })))}
+    
+                       
+                        {renderQuestions(GAD7_QUESTIONS.map(q => ({ question: q.question, answerType: 'radio', heading: 'GAD-7' })))}
+    
+                        
+                        {renderQuestions(questionList2.map(q => q.answerType === 'yesNo' ? { question: q.question, answerType: 'yesNo' } : { question: q.question, answerType: 'text' }))}
+                    </>
                 )}
 
-                {/* Questions */}
-                <div style={{ marginBottom: '32px' }}>
-                    {currentQuestionSet === 'PHQ2_GAD2_QuestionList1' ? (
-                        <>
-                            {renderQuestions(PHQ2_QUESTIONS.map(q => ({ question: q.question, answerType: 'radio' })))}
-                            {renderQuestions(GAD2_QUESTIONS.map(q => ({ question: q.question, answerType: 'radio' })))}
-                            {renderQuestions(questionList1.map(q => q.answerType === 'yesNo' ? { question: q.question, answerType: 'yesNo' } : { question: q.question, answerType: 'text' }))}
-                        </>
-                    ) : currentQuestionSet === 'PHQ9_GAD7_QuestionList2' && (
-                        <>
-                            {renderQuestions(PHQ9_QUESTIONS.map(q => ({ question: q.question, answerType: 'radio', heading: 'PHQ-9' })))}
-                            {renderQuestions(GAD7_QUESTIONS.map(q => ({ question: q.question, answerType: 'radio', heading: 'GAD-7' })))}
-                            {renderQuestions(questionList2.map(q => q.answerType === 'yesNo' ? { question: q.question, answerType: 'yesNo' } : { question: q.question, answerType: 'text' }))}
-                        </>
+         {/* 
+                       < button onClick={stopAudioRecording}>Stop Recording</button>
+         */}   
+    
+
+    <div className="submit-container">
+        <button
+        onClick={handleSubmit}
+        className="submit-button"
+        disabled={isRecordingCompleted}
+        >
+        제출
+        </button>
+
+
+       
+
+     
+            </div> 
+
+    
+            </div>
+                    {showConsentModal && (
+                    <div className="modal-overlay">
+                        <div className="modal-content">
+                        <h3>카메라 및 마이크 접근 허용</h3>
+                        <p>서비스 이용을 위해 {consentType === 'camera' ? '카메라' : '마이크'} 접근이 필요합니다.<br />동의하시겠습니까?</p>
+                        <div className="modal-buttons">
+                            <button
+                            onClick={async () => {
+                                setShowConsentModal(false);
+                                if (consentType === 'camera') {
+                                await proceedWithCameraConsent();
+                                } else if (consentType === 'microphone') {
+                                await proceedWithMicrophoneConsent();
+                                }
+                            }}
+                            >
+                            예, 허용합니다
+                            </button>
+                            <button onClick={() => setShowConsentModal(false)}>아니오</button>
+                        </div>
+                        </div>
+                    </div>
                     )}
-                </div>
 
-                {/* Submit Button */}
-                <div style={{ textAlign: 'center' }}>
-                    <AppButton
-                        onClick={handleSubmit}
-                        disabled={isRecordingCompleted}
-                        fullWidth
-                        style={{ maxWidth: '300px' }}
-                    >
-                        제출
-                    </AppButton>
-                </div>
-            </AppSection>
-
-            {/* Consent Modal */}
-            <ConsentModal />
-        </AppLayout>
+        </div>
+    
+    
     );
 };
 

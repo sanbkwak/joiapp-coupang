@@ -1,10 +1,20 @@
-// src/pages/RegistrationPage.js
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
+import { getAuth, createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 import { db } from './firebaseConfig';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import './css/modern.css';
+import AppLayout, { 
+  AppSection, 
+  AppFormGroup, 
+  AppInput, 
+  AppButton, 
+  AppStatusMessage 
+} from './components/layout/AppLayout';
+import { 
+  validateRegistrationForm, 
+  getPasswordStrength, 
+  generateSupportId 
+} from './utils/authValidation';
 
 const RegistrationPage = () => {
   const [formData, setFormData] = useState({
@@ -12,140 +22,364 @@ const RegistrationPage = () => {
     password: '',
     confirmPassword: '',
   });
+
+  const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [statusMessage, setStatusMessage] = useState('');
+  const [statusType, setStatusType] = useState('info');
+  const [showEmailVerification, setShowEmailVerification] = useState(false);
+  
   const navigate = useNavigate();
-  const auth     = getAuth();
+  const auth = getAuth();
 
-const [emailError, setEmailError] = useState('');
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
 
-const handleChange = e => {
-  const { name, value } = e.target;
-  setFormData(prev => ({ ...prev, [name]: value }));
-
-  if (name === 'email') {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(value)) {
-      setEmailError('올바른 이메일 형식이 아닙니다.');
-    } else {
-      setEmailError('');
+    // Clear field-specific errors
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: null }));
     }
+  };
+
+  const showStatus = (message, type = 'info') => {
+    setStatusMessage(message);
+    setStatusType(type);
+    setTimeout(() => setStatusMessage(''), 8000);
+  };
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    
+    // Validate form
+    const validationErrors = validateRegistrationForm(formData);
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      showStatus('입력 정보를 확인해주세요.', 'error');
+      return;
+    }
+
+    setLoading(true);
+    setErrors({});
+
+    try {
+      // Create the user in Firebase Auth
+      const { user } = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+      
+      // Send email verification
+      await sendEmailVerification(user);
+      
+      // Create user profile with support ID
+      const supportId = generateSupportId();
+      await setDoc(doc(db, 'users', user.uid), {
+        email: formData.email,
+        supportId,
+        emailVerified: false,
+        registeredAt: serverTimestamp(),
+        profileCompleted: false,
+      });
+
+      // Show email verification screen
+      setShowEmailVerification(true);
+      showStatus('가입이 완료되었습니다! 이메일 인증을 확인해주세요.', 'success');
+      
+    } catch (error) {
+      console.error('Registration error:', error);
+      
+      let errorMessage = '회원가입 실패: ';
+      switch (error.code) {
+        case 'auth/email-already-in-use':
+          errorMessage += '이미 사용 중인 이메일입니다.';
+          setErrors({ email: '이미 사용 중인 이메일입니다.' });
+          break;
+        case 'auth/weak-password':
+          errorMessage += '비밀번호가 너무 약합니다.';
+          setErrors({ password: ['비밀번호가 보안 요구사항을 충족하지 않습니다.'] });
+          break;
+        case 'auth/invalid-email':
+          errorMessage += '올바르지 않은 이메일 형식입니다.';
+          setErrors({ email: '올바르지 않은 이메일 형식입니다.' });
+          break;
+        case 'auth/network-request-failed':
+          errorMessage += '네트워크 오류가 발생했습니다. 다시 시도해주세요.';
+          break;
+        default:
+          errorMessage += error.message;
+      }
+      
+      showStatus(errorMessage, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const passwordStrength = getPasswordStrength(formData.password);
+
+  if (showEmailVerification) {
+    return (
+      <AppLayout 
+        title="이메일 인증"
+        showBackButton={false}
+        maxWidth={480}
+      >
+        <AppSection>
+          <div style={{ padding: '32px 24px', textAlign: 'center' }}>
+            <div style={{
+              width: '80px',
+              height: '80px',
+              borderRadius: '50%',
+              backgroundColor: '#3b82f6',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 24px auto'
+            }}>
+              <span style={{ fontSize: '32px', color: 'white' }}>📧</span>
+            </div>
+            
+            <h2 style={{ 
+              fontSize: '24px', 
+              fontWeight: '700', 
+              color: '#111827',
+              margin: '0 0 16px 0'
+            }}>
+              이메일 인증이 필요합니다
+            </h2>
+            
+            <p style={{ 
+              fontSize: '16px', 
+              color: '#6b7280',
+              margin: '0 0 24px 0',
+              lineHeight: '1.5'
+            }}>
+              <strong>{formData.email}</strong>로<br />
+              인증 링크를 보내드렸습니다.
+            </p>
+
+            <div style={{
+              padding: '20px',
+              backgroundColor: '#eff6ff',
+              borderRadius: '8px',
+              border: '1px solid #bfdbfe',
+              marginBottom: '24px'
+            }}>
+              <h3 style={{
+                fontSize: '16px',
+                fontWeight: '600',
+                color: '#1e40af',
+                margin: '0 0 12px 0'
+              }}>
+                다음 단계:
+              </h3>
+              <ol style={{
+                fontSize: '14px',
+                color: '#1e40af',
+                margin: 0,
+                paddingLeft: '20px',
+                textAlign: 'left'
+              }}>
+                <li>이메일함을 확인하세요</li>
+                <li>인증 링크를 클릭하세요</li>
+                <li>로그인 페이지로 돌아와 로그인하세요</li>
+              </ol>
+            </div>
+
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px'
+            }}>
+              <AppButton
+                variant="primary"
+                onClick={() => navigate('/login')}
+                fullWidth
+              >
+                로그인 페이지로 이동
+              </AppButton>
+              
+              <AppButton
+                variant="outline"
+                onClick={() => setShowEmailVerification(false)}
+                fullWidth
+              >
+                다시 가입하기
+              </AppButton>
+            </div>
+
+            <div style={{
+              marginTop: '24px',
+              padding: '12px',
+              backgroundColor: '#fef3c7',
+              borderRadius: '6px',
+              fontSize: '13px',
+              color: '#92400e'
+            }}>
+              ⚠️ 이메일이 보이지 않나요? 스팸 폴더를 확인해보세요.
+            </div>
+          </div>
+        </AppSection>
+      </AppLayout>
+    );
   }
-};
-
-
-const handleRegister = async (email, password, confirmPassword) => {
-  // 1) basic password match check
-  if (emailError) {
-  alert('이메일 형식을 확인해주세요.');
-  return;
-}
-  if (password !== confirmPassword) {
-    alert('비밀번호가 서로 일치하지 않습니다.');
-    return;
-  }
-
-  // 2) email format validation using regex
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
-    alert('올바른 이메일 형식을 입력해주세요.');
-    return;
-  }
-
-  try {
-    // 3) create the user in Firebase Auth
-    const { user } = await createUserWithEmailAndPassword(auth, email, password);
-    const uid = user.uid;
-
-    // 4) store user info in Firestore
-    await setDoc(doc(db, 'users', uid), {
-      email,
-      registeredAt: serverTimestamp(),
-      lastLogin: serverTimestamp(),
-      numberOfLogins: 1,
-      JoiPoints: 5,
-      lastSurveyDate: null,
-    });
-
-    // 5) navigate to profile
-    navigate('/profile');
-  } catch (error) {
-    console.error('회원가입 중 오류:', error);
-    alert('회원가입 실패: ' + error.message);
-  }
-};
 
   return (
-    <div className="container">
-      <div className="login-box">
-        <div className="login-header">
-          <h1>계정 생성</h1>
-          <p>환영합니다!</p>
+    <AppLayout 
+      title="계정 생성"
+      showBackButton={true}
+      maxWidth={480}
+    >
+      {statusMessage && (
+        <AppStatusMessage 
+          message={statusMessage}
+          type={statusType}
+          onClose={() => setStatusMessage('')}
+        />
+      )}
+
+      <AppSection>
+        <div style={{ padding: '32px 24px' }}>
+          <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+            <h2 style={{ 
+              fontSize: '24px', 
+              fontWeight: '700', 
+              color: '#111827',
+              margin: '0 0 8px 0'
+            }}>
+              환영합니다!
+            </h2>
+            <p style={{ 
+              fontSize: '16px', 
+              color: '#6b7280',
+              margin: 0
+            }}>
+              새로운 계정을 만들어 시작하세요
+            </p>
+          </div>
+
+          <form onSubmit={handleRegister}>
+            <AppFormGroup label="이메일" error={errors.email}>
+              <AppInput
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="your@email.com"
+                error={errors.email}
+                required
+              />
+            </AppFormGroup>
+
+            <AppFormGroup label="비밀번호" error={errors.password}>
+              <AppInput
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="안전한 비밀번호를 입력하세요"
+                error={errors.password}
+                required
+              />
+              
+              {/* Password strength indicator */}
+              {formData.password && (
+                <div style={{ marginTop: '8px' }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    marginBottom: '4px'
+                  }}>
+                    <div style={{
+                      flex: 1,
+                      height: '4px',
+                      backgroundColor: '#e5e7eb',
+                      borderRadius: '2px',
+                      overflow: 'hidden'
+                    }}>
+                      <div
+                        style={{
+                          width: `${(passwordStrength.score / 5) * 100}%`,
+                          height: '100%',
+                          backgroundColor: passwordStrength.color,
+                          transition: 'width 0.3s ease'
+                        }}
+                      />
+                    </div>
+                    <span style={{
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      color: passwordStrength.color
+                    }}>
+                      {passwordStrength.text}
+                    </span>
+                  </div>
+                  
+                  {errors.password && (
+                    <div style={{ fontSize: '12px', color: '#dc2626' }}>
+                      <strong>요구사항:</strong>
+                      <ul style={{ margin: '4px 0', paddingLeft: '16px' }}>
+                        {errors.password.map((error, index) => (
+                          <li key={index}>{error}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </AppFormGroup>
+
+            <AppFormGroup label="비밀번호 확인" error={errors.confirmPassword}>
+              <AppInput
+                type="password"
+                name="confirmPassword"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                placeholder="비밀번호를 다시 입력하세요"
+                error={errors.confirmPassword}
+                required
+              />
+            </AppFormGroup>
+
+            <div style={{ marginTop: '32px' }}>
+              <AppButton
+                type="submit"
+                variant="primary"
+                fullWidth
+                disabled={loading || !passwordStrength.isValid}
+              >
+                {loading ? '계정 생성 중...' : '계정 생성'}
+              </AppButton>
+            </div>
+
+            <div style={{ 
+              textAlign: 'center', 
+              marginTop: '24px',
+              padding: '16px 0',
+              borderTop: '1px solid #e5e7eb'
+            }}>
+              <p style={{ 
+                fontSize: '14px', 
+                color: '#6b7280',
+                margin: '0 0 8px 0'
+              }}>
+                이미 계정이 있으신가요?
+              </p>
+              <Link 
+                to="/login" 
+                style={{
+                  fontSize: '16px',
+                  color: '#2563eb',
+                  textDecoration: 'none',
+                  fontWeight: '600'
+                }}
+              >
+                로그인
+              </Link>
+            </div>
+          </form>
         </div>
-
-        <form
-          className="login-form"
-          onSubmit={e => {
-            e.preventDefault();
-            handleRegister(
-              formData.email,
-              formData.password,
-              formData.confirmPassword
-            );
-          }}
-        >
-          <div className="form-group">
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-            />
-            <label>이메일</label>
-            <div className="bar" />
-            {emailError && <p style={{ color: 'red', fontSize: '0.8rem' }}>{emailError}</p>}
-          </div>
-
-          <div className="form-group">
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-            />
-            <label>비밀번호</label>
-            <div className="bar" />
-          </div>
-
-          <div className="form-group">
-            <input
-              type="password"
-              name="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              required
-            />
-            <label>비밀번호 확인</label>
-            <div className="bar" />
-          </div>
-
-          <button type="submit" className="submit-btn">
-            계정 생성
-          </button>
-
-          <div className="register-link">
-            <p>이미 계정이 있으신가요?</p>
-            <Link to="/login" className="register-btn">
-              로그인
-            </Link>
-          </div>
-        </form>
-      </div>
-
-      <div className="footer">
-        <p>© Szupia, Inc. 2019</p>
-      </div>
-    </div>
+      </AppSection>
+    </AppLayout>
   );
 };
 
