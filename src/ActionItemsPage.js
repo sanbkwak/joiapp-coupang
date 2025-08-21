@@ -8,10 +8,10 @@ import { useLogout } from './utils/logout.js';
 import JoiAppLogo from './joiapplogo.png';
 import './css/ActionItemsPage.css';
 import { Link } from 'react-router-dom';
-
+import { getAuthToken } from './utils/authUtility';
 // If running locally, uncomment next line and comment out the prod URL.
- const API_URL = 'http://localhost:8080';
-//const API_URL = 'https://api.joiapp.org';
+// const API_URL = 'http://localhost:8080';
+const API_URL = 'https://api.joiapp.org';
 
 export default function ActionItemsPage() {
   const navigate = useNavigate();
@@ -26,18 +26,41 @@ export default function ActionItemsPage() {
   const [deepResults, setDeepResults] = useState(null);
   const [currentMoodLevel, setCurrentMoodLevel] = useState('stable');
   const [refreshing, setRefreshing] = useState(false);
-
+const makeAuthenticatedRequest = async (url, options = {}) => {
+  const token = getAuthToken();
+  if (!token) {
+    navigate('/');
+    return;
+  }
+  
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      ...options.headers,
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+  
+  if (response.status === 401) {
+    localStorage.removeItem('jwt_token');
+    localStorage.removeItem('user_id');
+    navigate('/');
+    return;
+  }
+  
+  return response;
+};
   // Auth check
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, user => {
-      if (user) {
-        setUserId(user.uid);
-      } else {
-        navigate('/');
-      }
-    });
-    return () => unsub();
-  }, [navigate]);
+useEffect(() => {
+  const token = getAuthToken();
+  if (token) {
+    const user_id = localStorage.getItem('user_id');
+    setUserId(user_id);
+  } else {
+    navigate('/');
+  }
+}, [navigate]);
 
   // Fetch action items when userId is available
   useEffect(() => {
@@ -49,11 +72,8 @@ export default function ActionItemsPage() {
 
   const fetchDeepResults = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/v1/coupang/analysis_results?userId=${userId}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
+  const res = await makeAuthenticatedRequest(`${API_URL}/api/v1/coupang/analysis_results`);
+
       if (res.ok) {
         const data = await res.json();
         setDeepResults(data);
@@ -75,11 +95,8 @@ export default function ActionItemsPage() {
   const fetchActionItems = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_URL}/api/v1/coupang/action_items?userId=${userId}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
+   const res = await makeAuthenticatedRequest(`${API_URL}/api/v1/coupang/action_items`);
+
       
       if (!res.ok) {
         throw new Error(`Failed to fetch action items: ${res.status}`);
@@ -98,14 +115,9 @@ export default function ActionItemsPage() {
   const generateNewActionItems = async () => {
     try {
       setRefreshing(true);
-      const res = await fetch(`${API_URL}/api/v1/coupang/action_items/generate`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ userId })
-      });
+  const res = await makeAuthenticatedRequest(`${API_URL}/api/v1/coupang/action_items/generate`, {
+  method: 'POST'
+});
       
       if (!res.ok) {
         throw new Error(`Failed to generate action items: ${res.status}`);

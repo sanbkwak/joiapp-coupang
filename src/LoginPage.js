@@ -18,78 +18,143 @@ const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const [isAdminMode, setIsAdminMode] = useState(false);
   const navigate = useNavigate();
-
+  const API_URL = "https://api.joiapp.org";
+  
   const showError = (message) => {
     setError(message);
     setTimeout(() => setError(null), 5000);
   };
 
   // User login
-  const handleUserLogin = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
+const handleUserLogin = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+  setError(null);
 
-    try {
-      const cred = await signInWithEmailAndPassword(auth, email, password);
-      const uid = cred.user.uid;
-      const userRef = doc(db, 'users', uid);
-      const snap = await getDoc(userRef);
-      const data = snap.data() || {};
+  try {
+    // First, authenticate with your Flask API
+    const response = await fetch(`${API_URL}/api/v1/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
 
-      const newLogins = (data.numberOfLogins || 0) + 1;
-      await updateDoc(userRef, {
-        lastLogin: serverTimestamp(),
-        numberOfLogins: newLogins,
-        JoiPoints: newLogins * 5,
-      });
-
-      // Survey every first login or every 2 weeks
-      const TWO_WEEKS = 14 * 24 * 60 * 60 * 1000;
-      const lastSurvey = data.lastSurveyDate?.toDate?.();
-      const now = Date.now();
-      const needSurvey = (
-        data.numberOfLogins === 0 ||
-        !lastSurvey ||
-        now - lastSurvey.getTime() > TWO_WEEKS
-      );
-
-      navigate(needSurvey ? '/survey' : '/questions');
-    } catch (e) {
-      console.error(e);
+    if (!response.ok) {
+      const errorData = await response.json();
       let errorMessage = '로그인 실패: ';
-      if (e.code === 'auth/user-not-found') {
-        errorMessage += '존재하지 않는 계정입니다.';
-      } else if (e.code === 'auth/wrong-password') {
-        errorMessage += '비밀번호가 올바르지 않습니다.';
-      } else if (e.code === 'auth/invalid-email') {
-        errorMessage += '올바르지 않은 이메일 형식입니다.';
-      } else if (e.code === 'auth/too-many-requests') {
-        errorMessage += '너무 많은 로그인 시도가 있었습니다. 잠시 후 다시 시도해주세요.';
-      } else {
-        errorMessage += e.message;
+      
+      // Map your Flask API error codes to user-friendly messages
+      switch (errorData.error?.code) {
+        case 'INVALID_CREDENTIALS':
+          errorMessage += '이메일 또는 비밀번호가 올바르지 않습니다.';
+          break;
+        case 'USER_NOT_FOUND':
+          errorMessage += '존재하지 않는 계정입니다.';
+          break;
+        case 'INVALID_EMAIL':
+          errorMessage += '올바르지 않은 이메일 형식입니다.';
+          break;
+        default:
+          errorMessage += errorData.error?.message || 'Login failed';
       }
       showError(errorMessage);
-    } finally {
-      setLoading(false);
+      return;
     }
-  };
+
+    const loginData = await response.json();
+    
+    // Store JWT token and user ID
+    localStorage.setItem('jwt_token', loginData.token);
+    localStorage.setItem('user_id', loginData.user_id);
+
+    // Now handle the Firestore user data updates
+    const uid = loginData.user_id;
+    const userRef = doc(db, 'users', uid);
+    const snap = await getDoc(userRef);
+    const data = snap.data() || {};
+
+    const newLogins = (data.numberOfLogins || 0) + 1;
+    await updateDoc(userRef, {
+      lastLogin: serverTimestamp(),
+      numberOfLogins: newLogins,
+      JoiPoints: newLogins * 5,
+    });
+
+    // Survey logic - every first login or every 2 weeks
+    const TWO_WEEKS = 14 * 24 * 60 * 60 * 1000;
+    const lastSurvey = data.lastSurveyDate?.toDate?.();
+    const now = Date.now();
+    const needSurvey = (
+      data.numberOfLogins === 0 ||
+      !lastSurvey ||
+      now - lastSurvey.getTime() > TWO_WEEKS
+    );
+
+    navigate(needSurvey ? '/survey' : '/questions');
+
+  } catch (error) {
+    console.error('Login error:', error);
+    let errorMessage = '로그인 실패: ';
+    
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      errorMessage += '네트워크 연결을 확인해주세요.';
+    } else if (error.message.includes('rate limit')) {
+      errorMessage += '너무 많은 로그인 시도가 있었습니다. 잠시 후 다시 시도해주세요.';
+    } else {
+      errorMessage += error.message;
+    }
+    showError(errorMessage);
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Admin login
-  const handleAdminLogin = (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
+const handleAdminLogin = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+  setError(null);
 
-    setTimeout(() => {
-      if (email === 'admin' && password === 'adminCoupang') {
-        navigate('/admin');
-      } else {
-        showError('관리자 로그인 오류: 아이디 또는 비밀번호가 잘못되었습니다.');
-      }
-      setLoading(false);
-    }, 500);
-  };
+  try {
+    // Use your Flask API for admin authentication
+    const response = await fetch(`${API_URL}/api/v1/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      showError('관리자 로그인 오류: 아이디 또는 비밀번호가 잘못되었습니다.');
+      return;
+    }
+
+    const loginData = await response.json();
+    
+    // Check if user has admin role (you'll need to add this to your user data)
+    const userRef = doc(db, 'users', loginData.user_id);
+    const userSnap = await getDoc(userRef);
+    const userData = userSnap.data();
+
+    if (!userData || userData.role !== 'admin') {
+      showError('관리자 권한이 없습니다.');
+      return;
+    }
+
+    // Store JWT token and user ID
+    localStorage.setItem('jwt_token', loginData.token);
+    localStorage.setItem('user_id', loginData.user_id);
+    localStorage.setItem('user_role', 'admin');
+
+    navigate('/admin');
+
+  } catch (error) {
+    console.error('Admin login error:', error);
+    showError('관리자 로그인 오류: 서버 연결 실패');
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <AppLayout 

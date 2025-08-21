@@ -4,7 +4,7 @@ import { auth, db } from './firebaseConfig';
 import { useNavigate } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
 import { collection, addDoc, getDocs, query, orderBy } from 'firebase/firestore';
-
+import { getAuthToken } from './utils/authUtility';
 const LABEL_MAP = {
   camera: "카메라 접근 허용",
   microphone: "마이크 접근 허용",
@@ -49,29 +49,34 @@ const PrivacySettingsPage = ({ onConsentsChange }) => {
     fetchLogs();
   }, [userId]);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        setUserId(user.uid);
-        try {
-          const q = query(collection(db, 'users', user.uid, 'consents'), orderBy('timestamp', 'desc'));
-          const snapshot = await getDocs(q);
-          const latest = {};
-          snapshot.forEach(doc => {
-            const { type, granted } = doc.data();
-            if (!(type in latest)) latest[type] = granted;
-          });
-          setConsents(prev => ({ ...prev, ...latest }));
-        } catch (error) {
-          console.error('Error fetching user consents:', error);
-        }
-      } else {
-        navigate('/');
-      }
+useEffect(() => {
+  const token = getAuthToken();
+  if (token) {
+    const user_id = localStorage.getItem('user_id');
+    setUserId(user_id);
+    
+    // Fetch existing consents
+    if (user_id) {
+      fetchUserConsents(user_id);
+    }
+  } else {
+    navigate('/');
+  }
+}, [navigate]);
+const fetchUserConsents = async (uid) => {
+  try {
+    const q = query(collection(db, 'users', uid, 'consents'), orderBy('timestamp', 'desc'));
+    const snapshot = await getDocs(q);
+    const latest = {};
+    snapshot.forEach(doc => {
+      const { type, granted } = doc.data();
+      if (!(type in latest)) latest[type] = granted;
     });
-    return () => unsubscribe();
-  }, [navigate]);
-
+    setConsents(prev => ({ ...prev, ...latest }));
+  } catch (error) {
+    console.error('Error fetching user consents:', error);
+  }
+};
   const toggleConsent = async (type) => {
     const newValue = !consents[type];
     const newConsents = { ...consents, [type]: newValue };

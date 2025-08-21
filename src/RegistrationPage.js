@@ -21,6 +21,7 @@ const RegistrationPage = () => {
     email: '',
     password: '',
     confirmPassword: '',
+     name: ''
   });
 
   const [errors, setErrors] = useState({});
@@ -28,9 +29,9 @@ const RegistrationPage = () => {
   const [statusMessage, setStatusMessage] = useState('');
   const [statusType, setStatusType] = useState('info');
   const [showEmailVerification, setShowEmailVerification] = useState(false);
-  
+  const API_URL = "https://api.joiapp.org";
   const navigate = useNavigate();
-  const auth = getAuth();
+ 
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -49,69 +50,70 @@ const RegistrationPage = () => {
   };
 
   const handleRegister = async (e) => {
-    e.preventDefault();
-    
-    // Validate form
-    const validationErrors = validateRegistrationForm(formData);
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
-      showStatus('입력 정보를 확인해주세요.', 'error');
-      return;
-    }
+  e.preventDefault();
+  
+  // Validate form
+  const validationErrors = validateRegistrationForm(formData);
+  if (Object.keys(validationErrors).length > 0) {
+    setErrors(validationErrors);
+    showStatus('입력 정보를 확인해주세요.', 'error');
+    return;
+  }
 
-    setLoading(true);
-    setErrors({});
+  setLoading(true);
+  setErrors({});
 
-    try {
-      // Create the user in Firebase Auth
-      const { user } = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
-      
-      // Send email verification
-      await sendEmailVerification(user);
-      
-      // Create user profile with support ID
-      const supportId = generateSupportId();
-      await setDoc(doc(db, 'users', user.uid), {
+  try {
+    const response = await fetch(`${API_URL}/api/v1/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
         email: formData.email,
-        supportId,
-        emailVerified: false,
-        registeredAt: serverTimestamp(),
-        profileCompleted: false,
-      });
+        password: formData.password,
+        name: formData.name // Extract name from email
+      })
+    });
 
-      // Show email verification screen
-      setShowEmailVerification(true);
-      showStatus('가입이 완료되었습니다! 이메일 인증을 확인해주세요.', 'success');
-      
-    } catch (error) {
-      console.error('Registration error:', error);
-      
+ if (response.ok) {
+  const data = await response.json();
+  localStorage.setItem('jwt_token', data.token);
+  localStorage.setItem('user_id', data.user_id);
+  showStatus('가입이 완료되었습니다!', 'success');
+  navigate('/survey');
+} else {
+      const errorData = await response.json();
       let errorMessage = '회원가입 실패: ';
-      switch (error.code) {
-        case 'auth/email-already-in-use':
+      
+      // Update to match Flask backend error structure
+      switch (errorData.error?.code) {
+        case 'EMAIL_ALREADY_EXISTS': // Changed from EMAIL_EXISTS
           errorMessage += '이미 사용 중인 이메일입니다.';
           setErrors({ email: '이미 사용 중인 이메일입니다.' });
           break;
-        case 'auth/weak-password':
+        case 'WEAK_PASSWORD':
           errorMessage += '비밀번호가 너무 약합니다.';
           setErrors({ password: ['비밀번호가 보안 요구사항을 충족하지 않습니다.'] });
           break;
-        case 'auth/invalid-email':
+        case 'INVALID_EMAIL_FORMAT': // Changed from INVALID_EMAIL
           errorMessage += '올바르지 않은 이메일 형식입니다.';
           setErrors({ email: '올바르지 않은 이메일 형식입니다.' });
           break;
-        case 'auth/network-request-failed':
-          errorMessage += '네트워크 오류가 발생했습니다. 다시 시도해주세요.';
-          break;
         default:
-          errorMessage += error.message;
+          errorMessage += errorData.error?.message || 'Registration failed';
       }
-      
       showStatus(errorMessage, 'error');
-    } finally {
-      setLoading(false);
     }
-  };
+  }  catch (error) {
+  console.error('Registration error:', error);
+  if (error.name === 'TypeError' && error.message.includes('fetch')) {
+    showStatus('서버에 연결할 수 없습니다. 네트워크 연결을 확인해주세요.', 'error');
+  } else {
+    showStatus('네트워크 오류가 발생했습니다. 다시 시도해주세요.', 'error');
+  }
+} finally {
+  setLoading(false);
+}
+};
 
   const passwordStrength = getPasswordStrength(formData.password);
 
@@ -255,7 +257,17 @@ const RegistrationPage = () => {
               새로운 계정을 만들어 시작하세요
             </p>
           </div>
-
+          <AppFormGroup label="이름" error={errors.name}>
+            <AppInput
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              placeholder="홍길동"
+              error={errors.name}
+              required
+            />
+          </AppFormGroup>
           <form onSubmit={handleRegister}>
             <AppFormGroup label="이메일" error={errors.email}>
               <AppInput

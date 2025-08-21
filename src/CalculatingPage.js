@@ -7,6 +7,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { Link } from 'react-router-dom';
 import { useLogout } from './utils/logout.js';
 import JoiAppLogo from './joiapplogo.png';
+import { getAuthToken } from './utils/authUtility';
 
 // Import AppLayout components
 import AppLayout, { AppSection, AppButton, AppStatusMessage } from './components/layout/AppLayout';
@@ -21,8 +22,35 @@ const CalculatingPage = () => {
     const [userId, setUserId] = useState(null);
     const [emotionalFitness, setEmotionalFitness] = useState(null);
     const [error, setError] = useState(null);
-   // const API_URL = "https://api.joiapp.org";
- const API_URL = "localhost:3000";
+
+
+  const API_URL = "https://api.joiapp.org";
+  //const API_URL = "localhost:3000";
+const makeAuthenticatedRequest = async (url, options = {}) => {
+  const token = getAuthToken();
+  if (!token) {
+    navigate('/');
+    return;
+  }
+  
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      ...options.headers,
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+  
+  if (response.status === 401) {
+    localStorage.removeItem('jwt_token');
+    localStorage.removeItem('user_id');
+    navigate('/');
+    return;
+  }
+  
+  return response;
+};
     const assessEmotionalFitness = (result) => {
         const DEVIANCE_THRESHOLD = 1.5;
         const MOOD_THRESHOLD = 0;
@@ -49,16 +77,15 @@ const CalculatingPage = () => {
         }
     }, [result]);
 
-    useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-            if (user) {
-                setUserId(user.uid);
-            } else {
-                navigate('/');
-            }
-        });
-        return () => unsubscribe();
-    }, [navigate]);
+useEffect(() => {
+  const token = getAuthToken();
+  if (token) {
+    const user_id = localStorage.getItem('user_id');
+    setUserId(user_id);
+  } else {
+    navigate('/');
+  }
+}, [navigate]);
 
     useEffect(() => {
         if (!userId) return;
@@ -66,7 +93,8 @@ const CalculatingPage = () => {
         const fetchProgress = async () => {
             try {
       
-                const res = await fetch(`${API_URL}/api/v1/prediction_progress?userId=${userId}`);
+ 
+                const res = await makeAuthenticatedRequest(`${API_URL}/prediction_progress`);
                 
                 if (res.ok) {
                     const data = await res.json();
@@ -96,10 +124,9 @@ const CalculatingPage = () => {
         const triggerCalculation = async () => {
             try {
       
-                const res = await fetch(`${API_URL}/api/v1/analyze_mood_anxiety`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId }),
+                const res = await makeAuthenticatedRequest(`${API_URL}/analyze_mood_anxiety`, {
+                method: 'POST',
+                body: JSON.stringify({ userId, /* other required data */ })
                 });
                 
                 if (!res.ok) {
@@ -119,12 +146,10 @@ const CalculatingPage = () => {
     const fetchFinalResult = async () => {
         try {
         
-            const response = await fetch(`${API_URL}/api/v1/analyze_mood_anxiety`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId }),
+                const response = await makeAuthenticatedRequest(`${API_URL}/analyze_mood_anxiety`, {
+            method: 'POST',
+            body: JSON.stringify({ userId, /* other required data */ })
             });
-            
             if (response.ok) {
                 const data = await response.json();
                 setResult(data);

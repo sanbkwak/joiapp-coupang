@@ -1,5 +1,5 @@
 // src/pages/ProfilePage.js
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { auth, db } from './firebaseConfig'
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore'
@@ -16,7 +16,7 @@ import AppLayout, {
 } from './components/layout/AppLayout'
 import JoiAppLogo from './joiapplogo.png'
 import { useLogout } from './utils/logout.js'
-
+import { getAuthToken } from './utils/authUtility';
 registerLocale('ko', ko)
 
 // Header Component for consistency
@@ -155,7 +155,15 @@ export default function ProfilePage() {
   
   const navigate = useNavigate()
   const logout = useLogout()
-  const uid = auth.currentUser?.uid
+  const uid = localStorage.getItem('user_id');
+
+
+useEffect(() => {
+  const token = getAuthToken();
+  if (!token || !uid) {
+    navigate('/');
+  }
+}, [uid, navigate]);
 
   const showStatus = (message, type = 'info') => {
     setStatusMessage(message)

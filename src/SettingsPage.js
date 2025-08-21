@@ -10,6 +10,8 @@ import {
   getDoc,
   serverTimestamp
 } from 'firebase/firestore';
+
+import { getAuthToken } from './utils/authUtility';
 import AppLayout, { 
   AppSection, 
   AppButton, 
@@ -102,21 +104,102 @@ const SettingsPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
-  
+  const API_URL = 'https://api.joiapp.org';
   const navigate = useNavigate();
   const logout = useLogout();
 
   // Track authenticated user
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setUserId(user.uid);
-      } else {
-        navigate('/');
-      }
+useEffect(() => {
+  const token = getAuthToken();
+  const user_id = localStorage.getItem('user_id');
+  
+  if (token && user_id) {
+    setUserId(user_id);
+  } else {
+    navigate('/login');
+  }
+}, [navigate]);
+
+useEffect(() => {
+  if (userId) {
+    loadUserSettings();
+  }
+}, [userId]);
+
+
+
+
+const makeAuthenticatedRequest = async (url, options = {}) => {
+  const token = getAuthToken();
+  if (!token) {
+    navigate('/login');
+    return;
+  }
+  
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      ...options.headers,
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+  
+  if (response.status === 401) {
+    localStorage.removeItem('jwt_token');
+    localStorage.removeItem('user_id');
+    navigate('/login');
+    return;
+  }
+  
+  return response;
+};
+
+// Load user settings from backend
+const loadUserSettings = async () => {
+  try {
+    const response = await makeAuthenticatedRequest(`${API_URL}/api/v1/user/settings`);
+    if (response && response.ok) {
+      const data = await response.json();
+      setConsents(data.consents || {});
+    }
+  } catch (error) {
+    console.error('Error loading settings:', error);
+  }
+};
+
+// Save settings to backend
+const handleSaveSettings = async () => {
+  if (!userId || !consents) {
+    setError('사용자 정보 또는 설정이 불완전합니다.');
+    return;
+  }
+
+  setLoading(true);
+  setError(null);
+
+  try {
+    const response = await makeAuthenticatedRequest(`${API_URL}/api/v1/user/settings`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        consents: consents
+      })
     });
-    return () => unsubscribe();
-  }, [navigate]);
+
+    if (response && response.ok) {
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } else {
+      throw new Error('Failed to save settings');
+    }
+  } catch (err) {
+    console.error('Settings save error:', err);
+    setError('설정 저장 중 오류가 발생했습니다. 다시 시도해주세요.');
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   // When consents all loaded, save and move on
   const handleContinue = async () => {
@@ -149,35 +232,7 @@ const SettingsPage = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleSaveSettings = async () => {
-    if (!userId || !consents) {
-      setError('사용자 정보 또는 설정이 불완전합니다.');
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      await setDoc(doc(db, 'users', userId), {
-        consents: {
-          ...consents,
-          updatedAt: serverTimestamp()
-        }
-      }, { merge: true });
-
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
-
-    } catch (err) {
-      console.error('Settings save error:', err);
-      setError('설정 저장 중 오류가 발생했습니다. 다시 시도해주세요.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  }; 
 
   const isAllConsentsSet = consents && Object.keys(consents).length === Object.keys(LABEL_MAP).length;
 

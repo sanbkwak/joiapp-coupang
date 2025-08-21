@@ -49,19 +49,27 @@ const LandingPage = () => {
         alignItems: 'center'
       }}>
         <div style={{
+          width: '80px',
+          height: '80px',
+          borderRadius: '20px',
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
           display: 'flex',
           alignItems: 'center',
-          gap: '12px'
+          justifyContent: 'center',
+          margin: '0 auto 24px auto',
+          padding: '8px' // Add padding to control spacing
         }}>
           <img 
             src={JoiAppLogo} 
             alt="JoiApp Logo" 
             style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '8px'
+              width: '100%',      // Fill the container
+              height: '100%',     // Fill the container
+              borderRadius: '12px',
+              objectFit: 'cover'  // Ensure proper scaling
             }}
           />
+ 
           <h1 style={{
             fontSize: '24px',
             fontWeight: '700',

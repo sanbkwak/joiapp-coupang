@@ -35,7 +35,7 @@ import { Link } from 'react-router-dom';
 import AppLayout, { AppSection, AppButton, AppStatusMessage } from './components/layout/AppLayout';
 
 
- 
+ import { getAuthToken } from './utils/authUtility';
 
 
 ChartJS.register(
@@ -50,8 +50,8 @@ ChartJS.register(
 );
 
 // If running locally, uncomment next line and comment out the prod URL.
- const API_URL = 'http://localhost:8080';
-// const API_URL = 'https://api.joiapp.org';
+//  const API_URL = 'http://localhost:8080';
+  const API_URL = 'https://api.joiapp.org';
 
 
 
@@ -136,55 +136,59 @@ const gad7TotalScore =
   latestGad7Entry?.gad7_total_score ??
   gad7Values.reduce((sum, val) => sum + val, 0);
 
+const makeAuthenticatedRequest = async (url, options = {}) => {
+  const token = getAuthToken();
+  if (!token) {
+    navigate('/login'); // Changed from '/' to '/login'
+    return;
+  }
+  
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        ...options.headers,
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (response.status === 401) {
+      localStorage.removeItem('jwt_token');
+      localStorage.removeItem('user_id');
+      navigate('/login');
+      return;
+    }
+    
+    return response;
+  } catch (error) {
+    console.error('Network error:', error);
+    throw error;
+  }
+};
 
-    // ─── When userId changes (or on mount), load all histories ───────────
+
+
+      // ─── When userId changes (or on mount), load all histories ───────────
   useEffect(() => {
     if (!userId) return;
     fetchEmotionHistories(userId);
     fetchPhqGadHistories(userId);
   }, [userId]);
 
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, user => {
-      if (user) {
-        setUserId(user.uid);
-        fetchFirestoreData(user.uid);
-        fetchEmotionHistories(user.uid);
-      } else {
-        navigate('/');
-      }
-    });
-    return () => unsub();
-  }, [navigate]);
+useEffect(() => {
+  const token = getAuthToken();
+  if (token) {
+    const user_id = localStorage.getItem('user_id');
+    setUserId(user_id);
+    // Remove fetchFirestoreData call since you're using Flask backend
+  } else {
+    navigate('/');
+  }
+}, [navigate]);
 
   // Fetch Firestore “answers” collections for the four scales
-  const fetchFirestoreData = async uid => {
-    const fetchCollectionData = async collName => {
-      const q = query(
-        collection(db, 'users', uid, collName),
-        orderBy('timestamp', 'desc')
-      );
-      const snap = await getDocs(q);
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    };
-
-    try {
-      const [gad7, phq9, gad2, phq2] = await Promise.all([
-        fetchCollectionData('gad7'),
-        fetchCollectionData('phq9'),
-        fetchCollectionData('gad2'),
-        fetchCollectionData('phq2')
-      ]);
-        console.log('🔍 fetched GAD-2 count:', gad2.length);
-    console.log('🔍 fetched PHQ-2 count:', phq2.length);
-      setGad7Data(gad7);
-      setPhq9Data(phq9);
-      setGad2Data(gad2);
-      setPhq2Data(phq2);
-    } catch (err) {
-      console.error('Error fetching Firestore data:', err);
-    }
-  };
+   
 
   // ─────────────────────────────────────────────────────────────
   // 5) Build Chart.js data object from Firestore docs
@@ -306,7 +310,7 @@ useEffect(() => {
 
     const intervalId = setInterval(async () => {
       try {
-        const res = await fetch(`${API_URL}/api/v1/coupang/status?userId=${userId}`);
+       const res = await makeAuthenticatedRequest(`${API_URL}/api/v1/coupang/status`);
         if (!res.ok) {
           throw new Error(`Status fetch failed: ${res.status}`);
         }
@@ -343,8 +347,8 @@ useEffect(() => {
       // 1) If <5 sessions, skip Coupang & get initial suggestions
       if (gad2Data.length < 5 || phq2Data.length < 5) {
         setInitialLoading(true);
-        const res = await fetch(
-          `${API_URL}/api/v1/coupang/initial_suggestions?userId=${encodeURIComponent(userId)}`
+              const res = await makeAuthenticatedRequest(
+          `${API_URL}/api/v1/coupang/initial_suggestions`
         );
         const json = await res.json();
         if (json.suggestion) {
@@ -358,9 +362,10 @@ useEffect(() => {
 
       // 2) Otherwise proceed as before:
       // fetch quick results then enqueue deep analysis
-      const quickRes = await fetch(
-        `${API_URL}/api/v1/coupang/results?userId=${encodeURIComponent(userId)}`
+      const quickRes = await makeAuthenticatedRequest(
+        `${API_URL}/api/v1/coupang/analysis_results`
       );
+
       if (!quickRes.ok) {
         throw new Error(`Failed to fetch coupang results: ${quickRes.status}`);
       }
@@ -385,7 +390,7 @@ useEffect(() => {
 
     const fetchQuickResults = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/v1/coupang/results?userId=${encodeURIComponent(userId)}`);
+      const res = await makeAuthenticatedRequest(`${API_URL}/api/v1/coupang/analysis_results`);
         if (!res.ok) {
           throw new Error(`Failed to fetch coupang results: ${res.status}`);
         }
@@ -407,7 +412,7 @@ useEffect(() => {
   const triggerDeepAnalysis = async () => {
     if (!userId) return;
     try {
-      const res = await fetch(`${API_URL}/api/v1/coupang/analyze/queue?userId=${userId}`, {
+        const res = await makeAuthenticatedRequest(`${API_URL}/api/v1/coupang/analyze/queue`, {
         method: 'POST'
       });
       if (!res.ok) {
@@ -427,11 +432,12 @@ useEffect(() => {
     setDeepStatus('in_progress');
     const id = setInterval(async () => {
       try {
-        const res = await fetch(`${API_URL}/api/v1/coupang/analysis_progress?userId=${userId}`);
-        if (!res.ok) {
-          throw new Error(`Progress fetch failed: ${res.status}`);
+       const progRes = await makeAuthenticatedRequest(`${API_URL}/api/v1/coupang/analysis_progress`);
+
+        if (!progRes.ok) {
+          throw new Error(`Progress fetch failed: ${progRes.status}`);
         }
-          const { progress, status } = await res.json();
+          const { progress, status } = await progRes.json();
           setDeepProgress(progress);
 
           // If the analysis thread hit an error, stop polling and show error UI
@@ -463,13 +469,13 @@ useEffect(() => {
 
     (async () => {
       try {
-        const res = await fetch(`${API_URL}/api/v1/coupang/analysis_results?userId=${userId}`);
+        const res = await makeAuthenticatedRequest(`${API_URL}/api/v1/coupang/analysis_results`);
         if (!res.ok) {
           throw new Error(`Deep results fetch failed: ${res.status}`);
         }
         const data = await res.json();
         setDeepResults(data);
-            const progRes = await fetch(`${API_URL}/api/v1/coupang/analysis_progress?userId=${userId}`);
+            const progRes = await makeAuthenticatedRequest(`${API_URL}/api/v1/coupang/analysis_progress`);
        const { summary } = await progRes.json();
        if (summary) setSummaryText(summary);
       } catch (err) {

@@ -10,27 +10,40 @@ import {
 import { checkUserExistsFirestore,   handleUserLogin } from './userModel';
  
 import { getAuth,  signInWithEmailAndPassword} from 'firebase/auth';
+ 
 
+const API_URL = "https://api.joiapp.org";
 
 export const useLoginOrRegister = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const auth = getAuth();
 
   const login = useCallback(async (email, password) => {
     if (loading) return;
     setLoading(true);
     try {
-      const { user } = await signInWithEmailAndPassword(auth, email, password);
-      await handleUserLogin(user.uid);
-      navigate('/dashboard');
+      const response = await fetch(`${API_URL}/api/v1/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        localStorage.setItem('jwt_token', data.token);
+        localStorage.setItem('user_id', data.user_id);
+        navigate('/dashboard');
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'Login failed');
+      }
     } catch (err) {
       console.error(err);
       alert('Login failed: ' + err.message);
     } finally {
       setLoading(false);
     }
-  }, [auth, loading, navigate]);
+  }, [loading, navigate]);
 
   return { login, loading };
 };

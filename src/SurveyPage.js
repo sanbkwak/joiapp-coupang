@@ -1,15 +1,4 @@
-import React, { useState } from 'react'
-import { auth, db } from './firebaseConfig';
-import {
-  collection,
-  updateDoc,
-  getDocs,
-  addDoc,
-  orderBy,
-  doc,
-  getDoc,
-  serverTimestamp
-} from 'firebase/firestore';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import AppLayout, { 
@@ -20,8 +9,9 @@ import AppLayout, {
 } from './components/layout/AppLayout';
 import JoiAppLogo from './joiapplogo.png'; 
 import { useLogout } from './utils/logout.js';
+import { getAuthToken } from './utils/authUtility';
 
-// Company‐wide stats for every question
+// Company-wide stats for every question
 const COMPANY_STATS = {
   A: 2,
   B: 5,
@@ -36,7 +26,7 @@ const QUESTIONS = [
     id: 1,
     text: "업무로 인해 신체적 또는 정서적으로 지쳤다고 느낀 적이 얼마나 자주 있습니까?",
     options: {
-      A: "전혀 느끼지 않았다",
+      A: "전혀 느라지 않았다",
       B: "가끔(한두 번)",
       C: "때때로(주 1회 정도)",
       D: "자주(주 2~3회)",
@@ -45,7 +35,7 @@ const QUESTIONS = [
   },
   {
     id: 2,
-    text: "번아웃을 가장 크게 느끼게 하는 요인은 무엇입니까?",
+    text: "번아웃을 가장 크게 느라게 하는 요인은 무엇입니까?",
     options: {
       A: "과도한 업무량 또는 빠듯한 마감 기한",
       B: "명확한 지침이나 자원 부족",
@@ -57,7 +47,7 @@ const QUESTIONS = [
   },
   {
     id: 3,
-    text: "성과 목표(KPI)를 달성해야 한다는 불안감을 얼마나 자주 느끼십니까?",
+    text: "성과 목표(KPI)를 달성해야 한다는 불안감을 얼마나 자주 느라십니까?",
     options: { A:"전혀", B:"거의 없음", C:"가끔", D:"자주", E:"항상" }
   },
   {
@@ -111,7 +101,7 @@ const QUESTIONS = [
   },
   {
     id: 9,
-    text: "하루 중 디지털 커뮤니케이션(예: Slack, 이메일) 양 때문에 얼마나 압도감을 느끼십니까?",
+    text: "하루 중 디지털 커뮤니케이션(예: Slack, 이메일) 양 때문에 얼마나 압도감을 느라십니까?",
     options: {
       A: "전혀 압도되지 않는다",
       B: "가끔 약간 압도된다",
@@ -147,8 +137,8 @@ const QUESTIONS = [
     text: "현재 워라밸(일과 삶의 균형)을 어떻게 평가하십니까?",
     options: {
       A: "충분한 개인/가족 시간과 경계가 있다",
-      B: "가끔 긴급 업무로 개인 시간을 희생한다",
-      C: "일관되게 늦게까지 일하며 일부 시간 희생",
+      B: "가끔 긴급 업무로 개인 시간을 포기한다",
+      C: "일관되게 늦게까지 일하며 일부 시간 포기",
       D: "업무 우선으로 개인 시간이 거의 없다",
       E: "업무가 전부이며 경계가 없다"
     }
@@ -226,7 +216,7 @@ const QUESTIONS = [
   },
   {
     id: 20,
-    text: "기밀 정신건강 지원(EAP, 상담 등)을 이용하는 데 얼마나 지원받고 있다고 느끼십니까?",
+    text: "기밀 정신건강 지원(EAP, 상담 등)을 이용하는 데 얼마나 지원받고 있다고 느라십니까?",
     options: {
       A: "매우 지원받음—쉽고 권장됨",
       B: "다소 지원받음—알지만 잘 사용 안 함",
@@ -270,7 +260,7 @@ const SurveyHeader = ({ onLogoClick, onLogout }) => (
         fontWeight: '700',
         color: '#111827'
       }}>
-        JoiApp
+        JoiApp - 기초 설문
       </span>
     </div>
 
@@ -413,6 +403,42 @@ export default function SurveyPage() {
 
   const navigate = useNavigate();
   const logout = useLogout();
+  const API_URL = 'https://api.joiapp.org';
+
+  // JWT authentication check
+  useEffect(() => {
+    const token = getAuthToken();
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+  }, [navigate]);
+
+  const makeAuthenticatedRequest = async (url, options = {}) => {
+    const token = getAuthToken();
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+    
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        ...options.headers,
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (response.status === 401) {
+      localStorage.removeItem('jwt_token');
+      localStorage.removeItem('user_id');
+      navigate('/login');
+      return;
+    }
+    
+    return response;
+  };
 
   const handleChange = (qid, opt) => {
     setAnswers(a => ({ ...a, [qid]: opt }));
@@ -442,19 +468,21 @@ export default function SurveyPage() {
     }));
 
     try {
-      // 1) Add a new survey doc
-      await addDoc(collection(db, "surveys"), {
-        createdAt: serverTimestamp(),
-        responses: payload
+      // Submit survey to Flask backend
+      const response = await makeAuthenticatedRequest(`${API_URL}/api/v1/survey/submit`, {
+        method: 'POST',
+        body: JSON.stringify({
+          responses: payload,
+          surveyType: 'baseline'
+        })
       });
-      
-      // 2) Update this user's lastSurveyDate
-      const uid = auth.currentUser.uid;
-      await updateDoc(doc(db, "users", uid), {
-        lastSurveyDate: serverTimestamp()
-      });
-      
-      setSubmitted(true);
+
+      if (response && response.ok) {
+        setSubmitted(true);
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'Survey submission failed');
+      }
     } catch (e) {
       console.error("Failed to save survey:", e);
       setError("제출에 실패했습니다. 다시 시도해 주세요.");
@@ -522,14 +550,14 @@ export default function SurveyPage() {
               color: '#111827',
               margin: '0 0 8px 0'
             }}>
-              직원 설문조사
+              기초 설문조사
             </h1>
             <p style={{
               fontSize: '16px',
               color: '#6b7280',
               margin: 0
             }}>
-              정신건강과 업무환경에 관한 익명 설문입니다
+              정신건강과 업무환경에 관한 기초 설문입니다
             </p>
           </div>
 
@@ -568,7 +596,7 @@ export default function SurveyPage() {
                   background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)'
                 }}
               >
-                {loading ? '제출 중...' : '설문조사 제출하기'}
+                {loading ? '제출 중...' : '기초 설문조사 제출하기'}
               </AppButton>
             </div>
           </form>
@@ -637,7 +665,7 @@ export default function SurveyPage() {
                   color: '#111827',
                   margin: '0 0 8px 0'
                 }}>
-                  설문조사 완료
+                  기초 설문조사 완료
                 </h1>
                 <p style={{
                   fontSize: '16px',
@@ -721,7 +749,7 @@ export default function SurveyPage() {
                   marginBottom: '16px',
                   lineHeight: '1.5'
                 }}>
-                  설문조사가 완료되었습니다.<br />
+                  기초 설문조사가 완료되었습니다.<br />
                   이제 정신건강 체크를 시작해보세요!
                 </p>
                 

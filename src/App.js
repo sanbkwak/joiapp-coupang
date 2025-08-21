@@ -39,7 +39,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import RequireAdmin from './routes/RequireAdmin';
 import SzupAdmin from './components/admin/SzupAdmin';
 import AdminLogin from './components/admin/AdminLogin';
-
+import UserManagement from './Admin/UserManagement';
  
 
 // add this small component above `const App = () => { ... }`
@@ -93,9 +93,15 @@ const App = () => {
             element={
               <RequireAdmin>
                 <SzupAdmin />
+                <AdminPage />
               </RequireAdmin>
             }
           />
+            <Route path="/admin/users" element={
+             <RequireAdmin>
+                 <UserManagement />
+            </RequireAdmin>
+            } />
 
           {/* Stellar wallet routes */}
           <Route path="/wallet/connect"     element={<ConnectWallet />} />

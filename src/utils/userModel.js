@@ -125,34 +125,7 @@ export const createUser = async (userId, additionalData = {}) => {
  * Called after a successful sign-in (email/password or social).
  * Creates or updates the user record.
  */
-export const handleUserLogin = async (userId) => {
-  try {
-    const userRef = doc(db, 'users', userId);
-    const snap = await getDoc(userRef);
-
-    if (snap.exists()) {
-      const data = snap.data();
-      const newCount = (data.numberOfLogins || 0) + 1;
-
-      await updateDoc(userRef, {
-        numberOfLogins: newCount,
-        lastLogin: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        JoiPoints: (data.JoiPoints || 0) + 5, // 5 points per login
-      });
-      
-      // Log the login event
-      await logUserActivity(userId, 'user_login', { loginCount: newCount });
-    } else {
-      // First-time registration
-      await createUser(userId);
-    }
-  } catch (error) {
-    console.error('Error handling user login:', error);
-    throw error;
-  }
-};
-
+ 
 /**
  * Updates user consent for a specific consent type.
  * @param {string} userId The user's Firebase UID.

@@ -23,18 +23,37 @@ const PHQ9_QUESTIONS = [
 const GAD2_QUESTIONS = GAD7_QUESTIONS.slice(0, 2).map(question => ({ ...question, heading: 'GAD-2' }));
 const PHQ2_QUESTIONS = PHQ9_QUESTIONS.slice(0, 2).map(question => ({ ...question, heading: 'PHQ-2' }));
 
-const questionList1 = [
-    { question: '성함을 말씀해 주세요', answerType: 'text' },
-    { question: '출생 년월일을 말씀해 주세요', answerType: 'text' },
-    { question: '현재 거주지 주소를 말씀해 주세요', answerType: 'text' },
- 
-  
+ const questionList1 = [
+    {
+        question: "그의 이름을 불러주었을 때, 그는 나에게로 와서 꽃이 되었다.",
+        answerType: "text",
+        isPoetic: true
+    },
+    {
+        question: "당신에게 힘이 되는 한 줄의 시나 명언이 있다면 무엇인가요?",
+        answerType: "text"
+    },
+    {
+        question: "오늘 하루를 색깔로 표현한다면?",
+        answerType: "text"
+    }
 ];
 
-const questionList2 = [
-    { question: '성함을 말씀해 주세요', answerType: 'text' },
-    { question: '출생 년월일을 말씀해 주세요', answerType: 'text' },
-    { question: '현재 거주지 주소를 말씀해 주세요', answerType: 'text' },
+
+ const questionList2 = [
+    {
+        question: "나는 나의 꿈을 꾸었다, 그리고 그 꿈이 나를 꾸었다.",
+        answerType: "text",
+        isPoetic: true
+    },
+    {
+        question: "당신만의 작은 행복은 무엇인가요?",
+        answerType: "text"
+    },
+    {
+        question: "지금 이 순간 느끼는 감정을 한 단어로 표현한다면?",
+        answerType: "text"
+    }
 ];
 
 const ANSWER_OPTIONS = [

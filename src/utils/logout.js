@@ -1,24 +1,31 @@
 import { useNavigate } from 'react-router-dom';
-import { getAuth, signOut } from 'firebase/auth';
+
+const API_URL = "https://api.joiapp.org";
 
 export const useLogout = () => {
   const navigate = useNavigate();
-  const auth = getAuth(); // Initialize Firebase Auth
 
-  const logout = () => {
-    // Sign out from Firebase Auth to clear user session
-    signOut(auth)
-      .then(() => {
-        console.log('User signed out successfully');
-        // Optionally clear any other user-related cache here
-        localStorage.removeItem('userId'); // Example of removing userId from local storage, if stored manually
-
-        // Navigate to landing page or login page after logout
-        navigate('/');
-      })
-      .catch((error) => {
-        console.error('Error signing out: ', error);
-      });
+  const logout = async () => {
+    try {
+      const token = localStorage.getItem('jwt_token');
+      if (token) {
+        await fetch(`${API_URL}/api/v1/auth/logout`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Logout API call failed:', error);
+    } finally {
+      // Clear local storage regardless of API call success
+      localStorage.removeItem('jwt_token');
+      localStorage.removeItem('user_id');
+      localStorage.removeItem('user_role');
+      navigate('/');
+    }
   };
 
   return logout;

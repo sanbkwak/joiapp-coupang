@@ -11,7 +11,7 @@ import JoiAppLogo from './joiapplogo.png';
 import AppLayout, { AppSection, AppButton, AppFormGroup, AppInput, AppStatusMessage } from './components/layout/AppLayout';
 import { Link } from 'react-router-dom';
 import { getAuth } from "firebase/auth";
-
+import { getAuthToken } from './utils/authUtility';
 
 const QuestionsPage = () => {
     const navigate = useNavigate();
@@ -76,6 +76,9 @@ const [consentType, setConsentType] = useState(null);
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
 
+      // const API_URL = "http://localhost:8080";
+      const API_URL = "http://api.joiapp.org";
+
     const disableMedia = useCallback(() => {
         if (mediaStream.current) {
             mediaStream.current.getTracks().forEach(track => track.stop());
@@ -86,7 +89,15 @@ const [consentType, setConsentType] = useState(null);
         }
     }, []);
 
-
+useEffect(() => {
+    const token = getAuthToken();
+    if (!token) {
+        navigate('/login');
+        return;
+    }
+    
+    // Continue with existing auth check...
+}, [navigate]);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -121,58 +132,85 @@ const [consentType, setConsentType] = useState(null);
         fetchConsents();
     }, [user?.uid]);
 
-   const handleMediaPermissions = async () => {
-        if (!consentState.camera) {
-            alert("카메라 사용에 동의하지 않으셨습니다. 설정에서 허용해주세요.");
-            return;
+  const handleMediaPermissions = async () => {
+    if (!consentState.camera) {
+        alert("카메라 사용에 동의하지 않으셨습니다. 설정에서 허용해주세요.");
+        return;
+    }
+    
+    try {
+        // Stop any existing video stream
+        if (mediaStream.current) {
+            mediaStream.current.getTracks().forEach(track => track.stop());
         }
-        try {
-            mediaStream.current = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-            if (videoRef.current) {
-                videoRef.current.srcObject = mediaStream.current;
-                videoRef.current.onloadedmetadata = () => {
-                    videoRef.current.play();
-                    console.log("카메라와 마이크를 활성화.");
-                };
-                setIsCameraEnabled(true);
-                startRecording();
-                addLog("카메라와 마이크를 활성화");
-                if (userId) {
-                    await addDoc(collection(db, "users", userId, "consents"), {
-                        type: "camera",
-                        granted: true,
-                        timestamp: new Date()
-                    });
-                }
-            } else {
-                console.error("Video reference is not defined.");
+        
+        // Request only video for camera recording
+        mediaStream.current = await navigator.mediaDevices.getUserMedia({ 
+            video: true, 
+            audio: false  // Keep audio separate
+        });
+        
+        if (videoRef.current) {
+            videoRef.current.srcObject = mediaStream.current;
+            videoRef.current.onloadedmetadata = () => {
+                videoRef.current.play();
+                console.log("카메라 활성화됨");
+            };
+            setIsCameraEnabled(true);
+            startRecording();
+            addLog("카메라 활성화");
+            
+            if (userId) {
+                await addDoc(collection(db, "users", userId, "consents"), {
+                    type: "camera",
+                    granted: true,
+                    timestamp: new Date()
+                });
             }
-        } catch (error) {
-            console.error("카메라와 마이크를 활성화 해주세요", error);
-            alert("카메라와 마이크를 활성화 해주세요.");
         }
-    };
-    const handleAudioMediaPermissions = async () => {
-        try {
-            // Request access to the microphone only
-            mediaStream.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    } catch (error) {
+        console.error("카메라 활성화 실패:", error);
+        alert("카메라를 활성화해주세요. 브라우저 설정에서 카메라 권한을 확인해주세요.");
+    }
+};
+
+
+const handleAudioMediaPermissions = async () => {
+    if (!consentState.microphone) {
+        alert("마이크 사용에 동의하지 않으셨습니다. 설정에서 허용해주세요.");
+        return;
+    }
     
-            if (mediaStream.current) {
-                console.log("Microphone is now enabled.");
-    
-                // Optionally, start recording if needed
-                startRecording(); // If applicable
-    
-                // Update log and state accordingly
-                addLog("Microphone enabled.");
-            } else {
-                console.error("Media stream could not be created.");
+    try {
+        // Stop any existing audio stream first
+        if (audioStream.current) {
+            audioStream.current.getTracks().forEach(track => track.stop());
+        }
+        
+        // Request fresh microphone access
+        audioStream.current = await navigator.mediaDevices.getUserMedia({ 
+            audio: true, 
+            video: false 
+        });
+        
+        if (audioStream.current) {
+            console.log("Microphone is now enabled.");
+            addLog("Microphone enabled.");
+            
+            // Log consent to Firestore
+            if (userId) {
+                await addDoc(collection(db, "users", userId, "consents"), {
+                    type: "microphone",
+                    granted: true,
+                    timestamp: new Date()
+                });
             }
-        } catch (error) {
-         console.error("카메라와 마이크를 활성화 해주세요", error);
-            alert("카메라와 마이크를 활성화 해주세요.");
         }
-    };
+    } catch (error) {
+        console.error("마이크 활성화 실패:", error);
+        alert("마이크를 활성화해주세요. 브라우저 설정에서 마이크 권한을 확인해주세요.");
+    }
+};
     const stopAllMedia = () => {
         // Stop media stream (camera and microphone)
         if (mediaStream.current) {
@@ -193,73 +231,68 @@ const [consentType, setConsentType] = useState(null);
         }
     };
     // Function to start audio recording
-    const startAudioRecording = async () => {
-        console.log("in startAudioRecording");
- //       stopAllMedia();
-       // mediaStream.current = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-         audioStream.current = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
-        // show it to user
-  //      audio.src = window.URL.createObjectURL(audioStream);
-  //      this.audio.play();
+   const startAudioRecording = async () => {
+    console.log("in startAudioRecording");
+    
+    // Make sure we have audio stream
+    if (!audioStream.current) {
+        await handleAudioMediaPermissions();
+    }
+    
+    if (!audioStream.current) {
+        console.error("No audio stream available");
+        return;
+    }
 
-        if (audioStream.current) {
-            console.log("in startAudioRecording audioStream.curren");
-            // List of MIME types to check for compatibility
-            const supportedMimeTypes = ['audio/webm', 'audio/ogg', 'audio/mp4'];
-            let mimeType = '';
-    
-            // Find a supported MIME type
-            for (let type of supportedMimeTypes) {
-                if (MediaRecorder.isTypeSupported(type)) {
-                    mimeType = type;
-                    break;
-                }
-            }
-    
-            // If no MIME type is supported, log an error and return
-            if (!mimeType) {
-                console.error("No supported MIME type found for MediaRecorder");
-                return;
-            }
-    
-            console.log(`Using MIME type: ${mimeType}`);
-            
-            try {
-                const audioMediaRecorder = new MediaRecorder(audioStream.current, { mimeType });
-                audioMediaRecorderRef.current = audioMediaRecorder;
-                console.log("in startAudioRecording audioMediaRecorderRef.current = audioMediaRecorder");
-    
-                audioMediaRecorder.onerror = (event) => {
-                    console.error("Error with MediaRecorder:", event.error);
-                };
+    try {
+        console.log("Starting audio recording with stream");
+        
+        // Find supported MIME type
+        const supportedMimeTypes = ['audio/webm', 'audio/ogg', 'audio/mp4'];
+        let mimeType = '';
 
-                audioMediaRecorder.ondataavailable = (event) => {
-                    if (event.data && event.data.size > 0) {
-                        recordedAudioChunksRef.current.push(event.data);
-                    }
-                };
-                console.log("in startAudioRecording audioMediaRecorder.ondataavailable set");
-    
-                audioMediaRecorder.start();
-                console.log("Audio recording started.");
-    
-                audioMediaRecorder.onstop = async () => {
-                    console.log('Audio recording stopped.');
-                    const audioBlob = new Blob(recordedAudioChunksRef.current, { type: mimeType });
-                    recordedAudioChunksRef.current = [];
-    
-                    // Handle upload logic here
-                    await handleAudioUpload(audioBlob);
-                };
-    
-       
-            } catch (error) {
-                console.error("Error starting MediaRecorder:", error);
+        for (let type of supportedMimeTypes) {
+            if (MediaRecorder.isTypeSupported(type)) {
+                mimeType = type;
+                break;
             }
-        } else {
-            console.error("Media stream is not available.");
         }
-    };
+
+        if (!mimeType) {
+            console.error("No supported MIME type found for MediaRecorder");
+            return;
+        }
+
+        console.log(`Using MIME type: ${mimeType}`);
+        
+        const audioMediaRecorder = new MediaRecorder(audioStream.current, { mimeType });
+        audioMediaRecorderRef.current = audioMediaRecorder;
+
+        audioMediaRecorder.onerror = (event) => {
+            console.error("MediaRecorder error:", event.error);
+        };
+
+        audioMediaRecorder.ondataavailable = (event) => {
+            if (event.data && event.data.size > 0) {
+                recordedAudioChunksRef.current.push(event.data);
+            }
+        };
+
+        audioMediaRecorder.onstop = async () => {
+            console.log('Audio recording stopped.');
+            const audioBlob = new Blob(recordedAudioChunksRef.current, { type: mimeType });
+            recordedAudioChunksRef.current = [];
+            await handleAudioUpload(audioBlob);
+        };
+
+        audioMediaRecorder.start();
+        console.log("Audio recording started successfully.");
+        setIsRecording(true);
+
+    } catch (error) {
+        console.error("Error starting MediaRecorder:", error);
+    }
+};
     
     const pauseAudioRecording = () => {
         if (audioMediaRecorderRef.current && isRecording && !isPaused) {
@@ -342,19 +375,18 @@ const [consentType, setConsentType] = useState(null);
 
         const formData = new FormData();
         formData.append('audio', audioBlob, 'recordedAudio.webm');
-        formData.append('userId', userId);
+    
         try {
             setIsWaitingForVoiceResults(true); // Show waiting indicator
-   //         const API_URL = "http://localhost:8080";
-          const API_URL = "https://api.joiapp.org";
-            const response = await fetch(`${API_URL}/analyzeVoice`, {
 
 
-   //        const response = await fetch('https://api.joiapp.org/analyzeVoice', {
-    // const response = await fetch('https://joiappbackend-56278236485.us-central1.run.app/analyzeVoice', {
+            const response = await fetch(`${API_URL}/api/v1/coupang/analyzeVoice`, {
                 method: 'POST',
-                body: formData,
-                headers: { 'Accept': 'application/json' },
+                headers: {
+                    'Authorization': `Bearer ${getAuthToken()}`,
+                    'Accept': 'application/json'
+                },
+                body: formData
             });
 
             if (response.ok) {
@@ -505,14 +537,15 @@ const [consentType, setConsentType] = useState(null);
         try {
             setIsWaitingForResults(true); // Show waiting indicator
       //      const API_URL = "http://localhost:8080";
-            const API_URL = "https://api.joiapp.org";
-            const response = await fetch(`${API_URL}/analyzeVideo`, {
-          //  const response = await fetch('https://api.joiapp.org/analyze', {
-        //        const response = await fetch('https://joiappbackend-56278236485.us-central1.run.app/analyze', {
-                method: 'POST',
-                body: formData,
-                headers: { 'Accept': 'application/json' },
-            });
+        
+  const response = await fetch(`${API_URL}/api/v1/coupang/analyzeVideo`, {
+    method: 'POST',
+    headers: {
+        'Authorization': `Bearer ${getAuthToken()}`,
+        'Accept': 'application/json'
+    },
+    body: formData
+});
         
             if (response.ok) {
                 const responseText = await response.text();
@@ -574,25 +607,27 @@ const [consentType, setConsentType] = useState(null);
         disableMedia();
     };
 
-    const handleVoiceButtonClick = async (question) => {
-        // Ensure media permissions are granted before starting recording
-        if (!mediaStream.current) {
-            await handleAudioMediaPermissions();
+  const handleVoiceButtonClick = async (question) => {
+    // Ensure audio permissions are granted before starting recording
+    if (!audioStream.current) {
+        await handleAudioMediaPermissions();
+        
+        // Wait a moment for permissions to be processed
+        await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    if (audioStream.current) {
+        // Start audio recording if it's not already recording
+        if (!isRecording) {
+            await startAudioRecording();
         }
-    
-        if (mediaStream.current) {
-            // Start audio recording if it's not already recording
-            if (!isRecording) {
-                startAudioRecording();
-                setIsRecording(true);
-            }
-    
-            // Start voice recognition for the specific question
-            startVoiceRecognition(question);
-        } else {
-            alert("Unable to access microphone. Please check your permissions.");
-        }
-    };
+
+        // Start voice recognition for the specific question
+        startVoiceRecognition(question);
+    } else {
+        alert("마이크에 접근할 수 없습니다. 브라우저 설정에서 마이크 권한을 확인해주세요.");
+    }
+};
     
 
 /*
@@ -1012,7 +1047,7 @@ const [consentType, setConsentType] = useState(null);
                 alignItems: 'center'
             }}>
                 <div
-                    onClick={() => navigate('/dashboard')}
+                    onClick={() => navigate('/survey')}
                     style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -1075,7 +1110,7 @@ const [consentType, setConsentType] = useState(null);
                     marginBottom: '24px',
                     textAlign: 'center'
                 }}>
-                    다음에 답하시요
+                    오늘 마음날씨는 어떤가요?
                 </h1>
 
                 {/* Media Controls */}
@@ -1100,22 +1135,67 @@ const [consentType, setConsentType] = useState(null);
                 </div>
 
                 {/* Video Container */}
-                <div style={{
+                        <div style={{
                     marginBottom: '24px',
                     borderRadius: '12px',
                     overflow: 'hidden',
-                    border: '2px solid #e5e7eb'
+                    border: '2px solid #e5e7eb',
+                    minHeight: '300px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: '#f9fafb'
                 }}>
-                    <video
-                        ref={videoRef}
-                        style={{
-                            width: '100%',
-                            maxHeight: '400px',
-                            display: 'block'
-                        }}
-                        autoPlay
-                        playsInline
-                    />
+                    {isCameraEnabled ? (
+                        <video
+                            ref={videoRef}
+                            style={{
+                                width: '100%',
+                                maxHeight: '400px',
+                                display: 'block'
+                            }}
+                            autoPlay
+                            playsInline
+                        />
+                    ) : (
+                        <div style={{
+                            padding: '40px 24px',
+                            textAlign: 'center',
+                            maxWidth: '500px'
+                        }}>
+                            <div style={{
+                                width: '64px',
+                                height: '64px',
+                                borderRadius: '50%',
+                                backgroundColor: '#e5e7eb',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                margin: '0 auto 16px auto'
+                            }}>
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2">
+                                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                                    <circle cx="12" cy="13" r="4"/>
+                                </svg>
+                            </div>
+                            <h3 style={{
+                                fontSize: '16px',
+                                fontWeight: '600',
+                                color: '#111827',
+                                marginBottom: '12px'
+                            }}>
+                                카메라 권한이 필요합니다
+                            </h3>
+                            <p style={{
+                                fontSize: '14px',
+                                color: '#6b7280',
+                                lineHeight: '1.6',
+                                marginBottom: '0'
+                            }}>
+                                카메라 영상은 저장되지 않습니다. 실시간으로 분석된 필요한 정신건강 정보만이 암호화되어 서버로 안전하게 전송됩니다. 저희는 무엇보다 귀하의 개인정보 보호를 최우선으로 합니다.
+                            </p>
+                        </div>
+                    )}
                 </div>
 
                 {/* Activity Log */}

@@ -22,7 +22,7 @@ import {
 } from './utils/userModel';
 
 // Enhanced PersonalPage.js - Account Deletion Section
- 
+ import { getAuthToken, isAuthenticated } from './utils/authUtility';
  import AdvancedDeleteAccountDialog from './AdvancedDeleteAccountDialog';
 
 
@@ -39,8 +39,8 @@ export default function PersonalPage({
   onOpenTOS,
   onWithdrawConsentConfirm, // optional async confirm
   onDeleteAccountConfirm, // optional async confirm for account deletion
-}) {
-  const { user, logout, loading: authLoading } = useAuth() || { user: null, logout: async () => {}, loading: true };
+}) {const [user, setUser] = useState(null);
+const [authLoading, setAuthLoading] = useState(true);
   const { publicKey, connect, isConnected, isInitialized } = useContext(WalletContext) || {};
 
   // State for user data
@@ -133,16 +133,10 @@ export default function PersonalPage({
   };
 
   // Helper functions for API calls (you'll implement these based on your backend)
-  const fetchCoupangInterim = async (userId) => {
-    // Call your Flask API: GET /api/v1/coupang/analysis_results
-    const response = await fetch(`/api/v1/coupang/analysis_results`, {
-      headers: {
-        'Authorization': `Bearer ${await user.getIdToken()}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    return response.json();
-  };
+ const fetchCoupangInterim = async (userId) => {
+  const response = await makeAuthenticatedRequest(`/api/v1/coupang/analysis_results`);
+  return response.json();
+};
 
   const fetchCoupangDeep = async (userId) => {
     // This would fetch from your coupang_deep collection
@@ -282,66 +276,92 @@ export default function PersonalPage({
   };
  
  
+const makeAuthenticatedRequest = async (url, options = {}) => {
+  const token = getAuthToken();
+  if (!token) {
+    navigate('/');
+    return;
+  }
+  
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      ...options.headers,
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+  
+  if (response.status === 401) {
+    localStorage.removeItem('jwt_token');
+    localStorage.removeItem('user_id');
+    navigate('/');
+    return;
+  }
+  
+  return response;
+};
+
+const logout = async () => {
+  localStorage.removeItem('jwt_token');
+  localStorage.removeItem('user_id');
+  localStorage.removeItem('user_role');
+  navigate('/login');
+};
+useEffect(() => {
+  const token = getAuthToken();
+  if (token) {
+    const user_id = localStorage.getItem('user_id');
+    const user_email = localStorage.getItem('user_email'); // if stored
+    setUser({ uid: user_id, email: user_email });
+  }
+  setAuthLoading(false);
+}, []);
 
   // Fetch user data, consents, and settings from Firestore
   useEffect(() => {
-    const fetchUserData = async () => {
-      if (!user?.uid) {
-        setUserDataLoading(false);
-        return;
+  const fetchUserData = async () => {
+    // Change this condition to check for user_id instead of user?.uid
+    if (!user?.uid) {
+      setUserDataLoading(false);
+      return;
+    }
+
+    try {
+      // The rest stays exactly the same - these functions work with Firestore data
+      await initializeUserIfNeeded(user.uid);
+
+      const [profile, consents, settings, permissions] = await Promise.all([
+        getUserProfile(user.uid).catch((err) => {
+          console.error('Error fetching profile:', err);
+          return null;
+        }),
+        // ... rest identical
+      ]);
+      
+      // All the state setting logic remains the same
+      if (profile) {
+        setUserData(profile);
       }
+      
+      setUserConsents(consents);
+      setDataUsageConsent(consents.dataUsage?.granted || false);
+      setWithdrawConsent(consents.withdrawConsent?.granted || false);
+      setUserSettings(settings);
+      setLanguage(settings.language || initialLanguage);
+      setDevicePermissions(permissions);
 
-      try {
-        // Ensure user exists in Firestore first
-        await initializeUserIfNeeded(user.uid);
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+    } finally {
+      setUserDataLoading(false);
+    }
+  };
 
-        // Fetch all user data in parallel
-        const [profile, consents, settings, permissions] = await Promise.all([
-          getUserProfile(user.uid).catch((err) => {
-            console.error('Error fetching profile:', err);
-            return null;
-          }),
-          getUserConsents(user.uid).catch((err) => {
-            console.error('Error fetching consents:', err);
-            return {};
-          }),
-          getUserSettings(user.uid).catch((err) => {
-            console.error('Error fetching settings:', err);
-            return {};
-          }),
-          getUserDevicePermissions(user.uid).catch((err) => {
-            console.error('Error fetching permissions:', err);
-            return {};
-          })
-        ]);
-        
-        // Set user profile data
-        if (profile) {
-          setUserData(profile);
-          console.log('User data loaded:', profile);
-        }
+  fetchUserData();
+}, [user?.uid, initialLanguage]);
 
-        // Set consents state
-        setUserConsents(consents);
-        setDataUsageConsent(consents.dataUsage?.granted || false);
-        setWithdrawConsent(consents.withdrawConsent?.granted || false);
 
-        // Set settings state
-        setUserSettings(settings);
-        setLanguage(settings.language || initialLanguage);
-
-        // Set device permissions state
-        setDevicePermissions(permissions);
-
-      } catch (error) {
-        console.error('Error fetching user data:', error);
-      } finally {
-        setUserDataLoading(false);
-      }
-    };
-
-    fetchUserData();
-  }, [user?.uid, initialLanguage]);
 
   // Show loading state while auth is initializing
   if (authLoading || userDataLoading) {
