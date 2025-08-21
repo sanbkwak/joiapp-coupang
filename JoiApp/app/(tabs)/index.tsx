@@ -6,7 +6,7 @@ import LoginScreen from '../Login/LoginScreen';
 import SignUpScreen from '../SignUp/SignUpScreen';
 
 const Index = () => {
-  return <LoginScreen />;
+  return <JoiQuestionnaire />;
 };
 
 export default Index;

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,37 +9,56 @@ import {
   SafeAreaView,
   StatusBar,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
-import styles from './JoiQuestionnaire.styles.js';
+import styles from './JoiQuestionnaire.styles';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
+const CAMERA_HEIGHT = 220; // adjust as needed
 
 const JoiQuestionnaire = () => {
+  // ----- Camera permission -----
+  const [permission, requestPermission] = useCameraPermissions();
+  const [requesting, setRequesting] = useState(false);
+
+  const handleRequestPermission = async () => {
+    try {
+      setRequesting(true);
+      await requestPermission();
+    } finally {
+      setRequesting(false);
+    }
+  };
+
+  // ----- Survey state -----
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState({});
   const [selectedOption, setSelectedOption] = useState(null);
+
+  // Animations
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
 
-  // Survey questions translated from the Korean images
+  // ----- Questions (20) -----
   const questions = [
     {
       id: 1,
-      text: "How often do you feel mentally or physically exhausted at work?",
+      text: 'How often do you feel mentally or physically exhausted at work?',
       options: [
         { value: 'A', text: 'Never feel that way' },
         { value: 'B', text: 'Occasionally (once or twice a month)' },
         { value: 'C', text: 'Sometimes (about once a week)' },
-        { value: 'D', text: 'Often (2-3 times a week)' },
+        { value: 'D', text: 'Often (2–3 times a week)' },
         { value: 'E', text: 'Always (almost daily)' },
       ],
     },
     {
       id: 2,
-      text: "What is the biggest factor that makes you feel the most anxious?",
+      text: 'What is the biggest factor that makes you feel the most anxious?',
       options: [
         { value: 'A', text: 'Excessive workload or tight deadlines' },
-        { value: 'B', text: 'Clear support or lack of autonomy' },
+        { value: 'B', text: 'Lack of support or autonomy' },
         { value: 'C', text: 'Long hours or weekend/overtime work' },
         { value: 'D', text: 'Goal achievement and performance pressure' },
         { value: 'E', text: 'Other (workplace relationships)' },
@@ -47,7 +66,7 @@ const JoiQuestionnaire = () => {
     },
     {
       id: 3,
-      text: "How often do you feel anxious or uncomfortable about achieving goals and KPIs?",
+      text: 'How often do you feel anxious or uncomfortable about achieving goals and KPIs?',
       options: [
         { value: 'A', text: 'Never' },
         { value: 'B', text: 'Almost never' },
@@ -58,18 +77,18 @@ const JoiQuestionnaire = () => {
     },
     {
       id: 4,
-      text: "What question do you ask yourself most when you're struggling at work?",
+      text: 'What do you usually tell yourself when you’re struggling at work?',
       options: [
-        { value: 'A', text: 'Am I not worried enough?' },
-        { value: 'B', text: 'There\'s worry but I can handle it' },
-        { value: 'C', text: 'I need to endure a little longer and then concentrate' },
-        { value: 'D', text: 'It\'s hard to concentrate later' },
-        { value: 'E', text: 'It became unavoidable' },
+        { value: 'A', text: 'No real worry here' },
+        { value: 'B', text: 'There’s worry but I can handle it' },
+        { value: 'C', text: 'Push through a bit more, then focus' },
+        { value: 'D', text: 'Hard to focus; I’m slipping' },
+        { value: 'E', text: 'It’s unavoidable; I’m overwhelmed' },
       ],
     },
     {
       id: 5,
-      text: "In the past month, have you ever felt sad or depressed while working on a task?",
+      text: 'In the past month, have you felt sad or depressed while working?',
       options: [
         { value: 'A', text: 'Never' },
         { value: 'B', text: 'Almost never' },
@@ -80,128 +99,128 @@ const JoiQuestionnaire = () => {
     },
     {
       id: 6,
-      text: "What situation makes you feel most comfortable right now?",
+      text: 'Which best describes your current overall mood?',
       options: [
-        { value: 'A', text: 'I am completely satisfied and have a sense of fulfillment' },
-        { value: 'B', text: 'I feel depressed but will recover quickly' },
-        { value: 'C', text: 'I feel depressed 2-3 times' },
-        { value: 'D', text: 'I often feel depressed or pressured' },
-        { value: 'E', text: 'I always feel down' },
+        { value: 'A', text: 'Fulfilled and satisfied' },
+        { value: 'B', text: 'Down at times but bounce back quickly' },
+        { value: 'C', text: 'Down 2–3 times a week' },
+        { value: 'D', text: 'Often down or pressured' },
+        { value: 'E', text: 'Consistently down' },
       ],
     },
     {
       id: 7,
-      text: "How often do you have trouble sleeping or staying asleep at night during the week?",
+      text: 'How many nights per week do you have trouble falling or staying asleep?',
       options: [
-        { value: 'A', text: 'No problems at all' },
-        { value: 'B', text: '1-2 days' },
-        { value: 'C', text: '3-4 days' },
-        { value: 'D', text: '5-6 days' },
+        { value: 'A', text: '0 days' },
+        { value: 'B', text: '1–2 days' },
+        { value: 'C', text: '3–4 days' },
+        { value: 'D', text: '5–6 days' },
         { value: 'E', text: 'Almost every day' },
       ],
     },
     {
       id: 8,
-      text: "When working with colleagues or subordinates, what kind of leadership do you usually exhibit?",
+      text: 'How energized are you when leading or collaborating with others?',
       options: [
-        { value: 'A', text: 'Perfect opening and productive' },
+        { value: 'A', text: 'Consistently energized and productive' },
         { value: 'B', text: 'Somewhat tired but manageable' },
-        { value: 'C', text: 'Often tired or often take walks' },
-        { value: 'D', text: 'Almost always tired or having trouble concentrating' },
-        { value: 'E', text: 'Each existing function is gone' },
+        { value: 'C', text: 'Often tired; need breaks' },
+        { value: 'D', text: 'Usually tired; concentration is hard' },
+        { value: 'E', text: 'Burned out; can’t perform' },
       ],
     },
     {
       id: 9,
-      text: "How often do you feel pressure from digital communication platforms (e.g., Slack, email) during the day?",
+      text: 'How much pressure do you feel from Slack/email/pings during the day?',
       options: [
-        { value: 'A', text: 'Not at all pressure' },
-        { value: 'B', text: 'Slightly stressful sometimes' },
-        { value: 'C', text: 'Usually regular and moderate' },
-        { value: 'D', text: 'Most of the day feels stressful' },
-        { value: 'E', text: 'Completely unbearable feeling' },
+        { value: 'A', text: 'None' },
+        { value: 'B', text: 'Slight, sometimes' },
+        { value: 'C', text: 'Moderate, regular' },
+        { value: 'D', text: 'Stressful most of the day' },
+        { value: 'E', text: 'Overwhelming' },
       ],
     },
     {
       id: 10,
-      text: "What ability do you feel you have when you leave work or take a break?",
+      text: 'When you clock out or take a break, how well can you switch off?',
       options: [
-        { value: 'A', text: 'Easily turn off and relax' },
-        { value: 'B', text: 'I can turn it off sometimes but mostly rest' },
-        { value: 'C', text: 'I often think about work' },
-        { value: 'D', text: 'I immediately need to worry about the same work pressure' },
-        { value: 'E', text: 'I\'m always in \'ON\' mode and can\'t escape' },
+        { value: 'A', text: 'Easily switch off and relax' },
+        { value: 'B', text: 'Sometimes switch off; mostly rest' },
+        { value: 'C', text: 'Often keep thinking about work' },
+        { value: 'D', text: 'Immediately worry about work again' },
+        { value: 'E', text: 'Always “ON”; can’t escape' },
       ],
     },
     {
       id: 11,
-      text: "How often do you work late after regular hours?",
+      text: 'How often do you work after regular hours?',
       options: [
         { value: 'A', text: 'Never' },
-        { value: 'B', text: 'Almost never (1-2 times a month)' },
-        { value: 'C', text: 'Sometimes (about once a week)' },
-        { value: 'D', text: 'Often (2-3 times a week)' },
-        { value: 'E', text: 'Always (almost daily)' },
+        { value: 'B', text: 'Rarely (1–2×/month)' },
+        { value: 'C', text: 'Sometimes (~1×/week)' },
+        { value: 'D', text: 'Often (2–3×/week)' },
+        { value: 'E', text: 'Always (most days)' },
       ],
     },
     {
       id: 12,
-      text: "How do you rate your current work-life balance?",
+      text: 'How is your current work–life balance?',
       options: [
-        { value: 'A', text: 'Sufficient personal time and good balance' },
-        { value: 'B', text: 'Recent busy work but personal time recovery' },
-        { value: 'C', text: 'Working consistently but some personal time recovery' },
-        { value: 'D', text: 'Personal time is scarce due to work priority' },
-        { value: 'E', text: 'Work is completely busy and no balance' },
+        { value: 'A', text: 'Good balance; plenty of personal time' },
+        { value: 'B', text: 'Recently busy; recovering personal time' },
+        { value: 'C', text: 'Manageable; some recovery' },
+        { value: 'D', text: 'Personal time is scarce' },
+        { value: 'E', text: 'No balance at all' },
       ],
     },
     {
       id: 13,
-      text: "What is your relationship with your team or colleagues like?",
+      text: 'How connected do you feel with your team/colleagues?',
       options: [
-        { value: 'A', text: 'Always connected and supportive' },
-        { value: 'B', text: 'Mostly connected but sometimes distant' },
-        { value: 'C', text: 'Neutral - not particularly close or distant' },
-        { value: 'D', text: 'Often feel lonely or socially isolated' },
+        { value: 'A', text: 'Always connected and supported' },
+        { value: 'B', text: 'Mostly connected; sometimes distant' },
+        { value: 'C', text: 'Neutral' },
+        { value: 'D', text: 'Often lonely or isolated' },
         { value: 'E', text: 'Not connected at all' },
       ],
     },
     {
       id: 14,
-      text: "What is your comfort level when talking to your manager or colleagues about mental health issues?",
+      text: 'How comfortable are you discussing mental health at work?',
       options: [
-        { value: 'A', text: 'Very comfortable - open dialogue anywhere' },
-        { value: 'B', text: 'Somewhat comfortable - but only with close colleagues' },
-        { value: 'C', text: 'Neutral - uncomfortable but manageable' },
-        { value: 'D', text: 'Uncomfortable - reluctant to judge' },
-        { value: 'E', text: 'Very uncomfortable - avoid completely' },
+        { value: 'A', text: 'Very comfortable; open dialogue' },
+        { value: 'B', text: 'Somewhat comfortable with close peers' },
+        { value: 'C', text: 'Neutral' },
+        { value: 'D', text: 'Uncomfortable' },
+        { value: 'E', text: 'Very uncomfortable; avoid it' },
       ],
     },
     {
       id: 15,
-      text: "Have you experienced any troubling, troubling, or excessive pressure from your boss or colleagues in the past 6 months?",
+      text: 'In the past 6 months, how often did you face unfair pressure or mistreatment?',
       options: [
         { value: 'A', text: 'Never' },
-        { value: 'B', text: 'Rarely - occasional incidents' },
-        { value: 'C', text: 'Sometimes - intermittent negative feedback' },
-        { value: 'D', text: 'Often - good negative interactions' },
-        { value: 'E', text: 'Very often - consistent negative treatment' },
+        { value: 'B', text: 'Rarely; isolated incidents' },
+        { value: 'C', text: 'Sometimes; intermittent' },
+        { value: 'D', text: 'Often; frequent' },
+        { value: 'E', text: 'Very often; consistent' },
       ],
     },
     {
       id: 16,
-      text: "When you feel troubled or have a difficult problem, how does it affect you immediately?",
+      text: 'When a difficult problem hits, what’s the immediate impact?',
       options: [
-        { value: 'A', text: 'No special impact' },
+        { value: 'A', text: 'No real impact' },
         { value: 'B', text: 'Slight stress or discomfort' },
-        { value: 'C', text: 'Moderate stress - concentration/emotional impact' },
-        { value: 'D', text: 'Severe stress - sleep or appetite disturbance' },
-        { value: 'E', text: 'Very severe stress - seeking professional help or missing work' },
+        { value: 'C', text: 'Moderate stress; focus/emotions affected' },
+        { value: 'D', text: 'Severe stress; sleep/appetite disturbed' },
+        { value: 'E', text: 'Very severe; need help or miss work' },
       ],
     },
     {
       id: 17,
-      text: "How often do you feel physically tense or have difficulty working when experiencing workplace conflicts, complaints, or high-stress situations?",
+      text: 'During conflicts or high-stress situations, how tense do you feel physically?',
       options: [
         { value: 'A', text: 'Never' },
         { value: 'B', text: 'Rarely' },
@@ -212,34 +231,34 @@ const JoiQuestionnaire = () => {
     },
     {
       id: 18,
-      text: "What methods do you mainly use to cope with stressful situations at work?",
+      text: 'How do you usually cope with work stress?',
       options: [
-        { value: 'A', text: 'Immediate conversation with friends/family' },
-        { value: 'B', text: 'Use relaxation or mindfulness techniques' },
-        { value: 'C', text: 'Casual conversations via games/SNS' },
-        { value: 'D', text: 'Just endure and continue working' },
-        { value: 'E', text: 'Professional help (counseling) request' },
+        { value: 'A', text: 'Talk with friends/family' },
+        { value: 'B', text: 'Relaxation or mindfulness' },
+        { value: 'C', text: 'Games/social media chats' },
+        { value: 'D', text: 'Just push through' },
+        { value: 'E', text: 'Seek professional help' },
       ],
     },
     {
       id: 19,
-      text: "Do you rely on alcohol, caffeine, or other substances to help relieve work stress?",
+      text: 'Do you rely on alcohol, caffeine, or other substances to relieve stress?',
       options: [
         { value: 'A', text: 'Never' },
-        { value: 'B', text: 'Rarely - 1-2 times' },
-        { value: 'C', text: 'Sometimes - about once a month' },
-        { value: 'D', text: 'Often - weekly' },
-        { value: 'E', text: 'Always - daily or almost daily' },
+        { value: 'B', text: 'Rarely (1–2×)' },
+        { value: 'C', text: 'Sometimes (~monthly)' },
+        { value: 'D', text: 'Often (weekly)' },
+        { value: 'E', text: 'Always (daily or almost daily)' },
       ],
     },
     {
       id: 20,
-      text: "How long do you feel supported when using an Employee Assistance Program (EAP, counseling, etc.)?",
+      text: 'How supported do you feel using Employee Assistance Programs (EAP, counseling)?',
       options: [
-        { value: 'A', text: 'Very supportive - easy and encouraged' },
-        { value: 'B', text: 'Somewhat supportive - knows how to use but not well known' },
-        { value: 'C', text: 'Neutral - recognizes but not specific' },
-        { value: 'D', text: 'Not supportive - feels there is no help available' },
+        { value: 'A', text: 'Very supported; easy and encouraged' },
+        { value: 'B', text: 'Somewhat supported; know how to access' },
+        { value: 'C', text: 'Neutral; aware but unclear' },
+        { value: 'D', text: 'Not supported; feels unavailable' },
         { value: 'E', text: 'Not supported at all' },
       ],
     },
@@ -247,158 +266,90 @@ const JoiQuestionnaire = () => {
 
   const totalQuestions = questions.length;
   const progress = ((currentQuestionIndex + 1) / totalQuestions) * 100;
+  const currentQuestion = questions[currentQuestionIndex];
 
-  const handleOptionSelect = (option) => {
-    setSelectedOption(option);
+  // ----- Animations -----
+  const animateBetween = (dir = 'next') => {
+    const offset = dir === 'next' ? -width : width;
+    return Animated.sequence([
+      Animated.timing(fadeAnim, { toValue: 0, duration: 160, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: offset, duration: 0, useNativeDriver: true }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: 260, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 260, useNativeDriver: true }),
+    ]);
   };
+
+  // ----- Handlers -----
+  const handleOptionSelect = (option) => setSelectedOption(option);
 
   const handleNext = () => {
     if (!selectedOption) {
       Alert.alert('Please select an answer', 'You must choose an option before continuing.');
       return;
     }
-
-    // Save the answer
-    const newAnswers = {
-      ...answers,
-      [questions[currentQuestionIndex].id]: selectedOption,
-    };
+    const newAnswers = { ...answers, [currentQuestion.id]: selectedOption };
     setAnswers(newAnswers);
 
     if (currentQuestionIndex < totalQuestions - 1) {
-      // Animate to next question
-      Animated.sequence([
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: -width,
-          duration: 0,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]).start();
-
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
-      setSelectedOption(newAnswers[questions[currentQuestionIndex + 1]?.id] || null);
+      animateBetween('next').start(() => {
+        const nextIndex = currentQuestionIndex + 1;
+        setCurrentQuestionIndex(nextIndex);
+        setSelectedOption(newAnswers[questions[nextIndex].id] || null);
+      });
     } else {
-      // Survey completed
       handleSurveyComplete(newAnswers);
     }
   };
 
   const handlePrevious = () => {
-    if (currentQuestionIndex > 0) {
-      Animated.sequence([
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: width,
-          duration: 0,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]).start();
-
-      setCurrentQuestionIndex(currentQuestionIndex - 1);
-      setSelectedOption(answers[questions[currentQuestionIndex - 1].id] || null);
-    }
+    if (currentQuestionIndex === 0) return;
+    animateBetween('prev').start(() => {
+      const prevIndex = currentQuestionIndex - 1;
+      setCurrentQuestionIndex(prevIndex);
+      setSelectedOption(answers[questions[prevIndex].id] || null);
+    });
   };
 
   const handleSurveyComplete = (finalAnswers) => {
-    // Calculate results based on answers
     const results = calculateResults(finalAnswers);
-    
     Alert.alert(
       'Survey Complete! 🎉',
-      `Thank you for completing the workplace wellness survey.\n\nYour results:\n• Stress Level: ${results.stressLevel}\n• Recommendations: ${results.recommendations}\n\nThese insights will help personalize your Joi App experience.`,
-      [
-        {
-          text: 'View Detailed Results',
-          onPress: () => {
-            console.log('Navigate to results screen', results);
-          },
-        },
-      ]
+      `Thanks for completing the wellness survey.\n\nYour results:\n• Stress Level: ${results.stressLevel}\n• Recommendation: ${results.recommendations}`,
+      [{ text: 'OK' }],
     );
   };
 
   const calculateResults = (surveyAnswers) => {
-    // Simple scoring algorithm
     let stressScore = 0;
-
     Object.values(surveyAnswers).forEach((answer) => {
       switch (answer.value) {
-        case 'A':
-          stressScore += 1;
-          break;
-        case 'B':
-          stressScore += 2;
-          break;
-        case 'C':
-          stressScore += 3;
-          break;
-        case 'D':
-          stressScore += 4;
-          break;
-        case 'E':
-          stressScore += 5;
-          break;
+        case 'A': stressScore += 1; break;
+        case 'B': stressScore += 2; break;
+        case 'C': stressScore += 3; break;
+        case 'D': stressScore += 4; break;
+        case 'E': stressScore += 5; break;
       }
     });
-
-    const averageScore = stressScore / totalQuestions;
+    const average = stressScore / totalQuestions;
     let stressLevel, recommendations;
-
-    if (averageScore <= 2) {
-      stressLevel = 'Low Stress';
-      recommendations = 'Continue your healthy habits and stay mindful';
-    } else if (averageScore <= 3.5) {
-      stressLevel = 'Moderate Stress';
-      recommendations = 'Consider stress management techniques and regular breaks';
+    if (average <= 2) {
+      stressLevel = 'Low';
+      recommendations = 'Keep up healthy routines and mindful breaks.';
+    } else if (average <= 3.5) {
+      stressLevel = 'Moderate';
+      recommendations = 'Add stress-management techniques and regular pauses.';
     } else {
-      stressLevel = 'High Stress';
-      recommendations = 'Prioritize self-care and consider professional support';
+      stressLevel = 'High';
+      recommendations = 'Prioritize self-care and consider professional support.';
     }
-
-    return {
-      stressLevel,
-      recommendations,
-      score: averageScore,
-      totalQuestions,
-      completedAt: new Date().toISOString(),
-    };
+    return { stressLevel, recommendations, score: average, totalQuestions, completedAt: new Date().toISOString() };
   };
 
-  const currentQuestion = questions[currentQuestionIndex];
-
+  // ----- Render -----
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#4A90E2" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Workplace Wellness Survey</Text>
@@ -407,30 +358,55 @@ const JoiQuestionnaire = () => {
         </Text>
       </View>
 
-      {/* Progress Bar */}
+      {/* Progress */}
       <View style={styles.progressContainer}>
         <View style={styles.progressBar}>
-          <Animated.View
-            style={[
-              styles.progressFill,
-              { width: `${progress}%` }
-            ]}
-          />
+          <Animated.View style={[styles.progressFill, { width: `${progress}%` }]} />
         </View>
         <Text style={styles.progressText}>{Math.round(progress)}% Complete</Text>
       </View>
 
-      {/* Question Content */}
+      {/* FIXED CAMERA (does not scroll) */}
+      <View style={[styles.cameraContainer, { height: CAMERA_HEIGHT }]}>
+        {permission?.granted ? (
+          <CameraView style={styles.cameraPreview} facing="front" />
+        ) : (
+          <View style={[styles.cameraPreview, { paddingHorizontal: 16 }]}>
+            {requesting ? (
+              <ActivityIndicator />
+            ) : (
+              <>
+                <Text style={styles.cameraOverlayText}>
+                  Camera permission is required to show the preview.
+                </Text>
+                {permission?.canAskAgain && (
+                  <TouchableOpacity
+                    onPress={handleRequestPermission}
+                    style={styles.permissionButton}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.permissionButtonText}>Grant Permission</Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            )}
+          </View>
+        )}
+      </View>
+
+      {/* Privacy Message (fixed, just below camera) */}
+      <View style={styles.privacyMessageContainer}>
+        <Text style={styles.privacyMessageText}>
+          Camera footage is not stored. Only the necessary mental health information, analyzed in real time,
+          is encrypted and securely transmitted to the server. We prioritize your privacy above all else.
+        </Text>
+      </View>
+
+      {/* Scrollable content (camera & privacy stay fixed above) */}
       <Animated.View
-        style={[
-          styles.contentContainer,
-          {
-            opacity: fadeAnim,
-            transform: [{ translateX: slideAnim }],
-          },
-        ]}
+        style={[styles.contentContainer, { opacity: fadeAnim, transform: [{ translateX: slideAnim }] }]}
       >
-        <ScrollView 
+        <ScrollView
           style={styles.scrollContainer}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
@@ -441,7 +417,7 @@ const JoiQuestionnaire = () => {
           </View>
 
           <View style={styles.optionsContainer}>
-            {currentQuestion.options.map((option, index) => (
+            {currentQuestion.options.map((option) => (
               <TouchableOpacity
                 key={option.value}
                 style={[
@@ -452,24 +428,28 @@ const JoiQuestionnaire = () => {
                 activeOpacity={0.7}
               >
                 <View style={styles.optionContent}>
-                  <View style={[
-                    styles.optionRadio,
-                    selectedOption?.value === option.value && styles.optionRadioSelected,
-                  ]}>
-                    {selectedOption?.value === option.value && (
-                      <View style={styles.optionRadioInner} />
-                    )}
+                  <View
+                    style={[
+                      styles.optionRadio,
+                      selectedOption?.value === option.value && styles.optionRadioSelected,
+                    ]}
+                  >
+                    {selectedOption?.value === option.value && <View style={styles.optionRadioInner} />}
                   </View>
-                  <Text style={[
-                    styles.optionLabel,
-                    selectedOption?.value === option.value && styles.optionLabelSelected,
-                  ]}>
+                  <Text
+                    style={[
+                      styles.optionLabel,
+                      selectedOption?.value === option.value && styles.optionLabelSelected,
+                    ]}
+                  >
                     {option.value}
                   </Text>
-                  <Text style={[
-                    styles.optionText,
-                    selectedOption?.value === option.value && styles.optionTextSelected,
-                  ]}>
+                  <Text
+                    style={[
+                      styles.optionText,
+                      selectedOption?.value === option.value && styles.optionTextSelected,
+                    ]}
+                  >
                     {option.text}
                   </Text>
                 </View>
@@ -479,7 +459,7 @@ const JoiQuestionnaire = () => {
         </ScrollView>
       </Animated.View>
 
-      {/* Navigation Buttons */}
+      {/* Navigation */}
       <View style={styles.navigationContainer}>
         {currentQuestionIndex > 0 && (
           <TouchableOpacity
@@ -490,21 +470,13 @@ const JoiQuestionnaire = () => {
             <Text style={styles.prevButtonText}>← Previous</Text>
           </TouchableOpacity>
         )}
-        
         <TouchableOpacity
-          style={[
-            styles.navButton,
-            styles.nextButton,
-            !selectedOption && styles.nextButtonDisabled,
-          ]}
+          style={[styles.navButton, styles.nextButton, !selectedOption && styles.nextButtonDisabled]}
           onPress={handleNext}
           disabled={!selectedOption}
           activeOpacity={0.8}
         >
-          <Text style={[
-            styles.nextButtonText,
-            !selectedOption && styles.nextButtonTextDisabled,
-          ]}>
+          <Text style={[styles.nextButtonText, !selectedOption && styles.nextButtonTextDisabled]}>
             {currentQuestionIndex === totalQuestions - 1 ? 'Complete Survey' : 'Next →'}
           </Text>
         </TouchableOpacity>

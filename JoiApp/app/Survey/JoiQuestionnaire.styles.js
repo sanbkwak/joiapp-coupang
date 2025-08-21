@@ -23,6 +23,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.8)',
     textAlign: 'center',
   },
+
   progressContainer: {
     backgroundColor: 'white',
     paddingHorizontal: 20,
@@ -48,6 +49,46 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '600',
   },
+
+  // --- Camera ---
+  cameraContainer: {
+    backgroundColor: 'black',
+    marginHorizontal: 20,
+    marginTop: 12,
+    marginBottom: 8,
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  cameraPreview: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cameraOverlayText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+    opacity: 0.85,
+    textAlign: 'center',
+  },
+  permissionButton: {
+    marginTop: 10,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  permissionButtonText: {
+    color: 'white',
+    fontWeight: '600',
+  },
+
+  // --- Content ---
   contentContainer: {
     flex: 1,
   },
@@ -57,18 +98,17 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 20,
   },
+
+  // --- Question ---
   questionContainer: {
     backgroundColor: 'white',
     marginHorizontal: 20,
-    marginTop: 20,
+    marginTop: 12,
     marginBottom: 15,
     padding: 20,
     borderRadius: 12,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3.84,
     elevation: 5,
@@ -85,6 +125,8 @@ const styles = StyleSheet.create({
     color: '#14171A',
     lineHeight: 26,
   },
+
+  // --- Options ---
   optionsContainer: {
     marginHorizontal: 20,
   },
@@ -95,10 +137,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#E1E8ED',
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 2,
@@ -153,6 +192,8 @@ const styles = StyleSheet.create({
     color: '#14171A',
     fontWeight: '500',
   },
+
+  // --- Navigation ---
   navigationContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -192,6 +233,18 @@ const styles = StyleSheet.create({
   },
   nextButtonTextDisabled: {
     color: '#657786',
+  },
+    // --- Privacy Disclaimer ---
+  privacyMessageContainer: {
+    marginHorizontal: 20,
+    marginBottom: 8,
+    paddingHorizontal: 12,
+  },
+  privacyMessageText: {
+    fontSize: 12,
+    color: '#657786',
+    textAlign: 'center',
+    lineHeight: 18,
   },
 });
 
