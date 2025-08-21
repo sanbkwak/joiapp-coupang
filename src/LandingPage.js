@@ -49,27 +49,31 @@ const LandingPage = () => {
         alignItems: 'center'
       }}>
         <div style={{
-          width: '80px',
-          height: '80px',
-          borderRadius: '20px',
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
-          margin: '0 auto 24px auto',
-          padding: '8px' // Add padding to control spacing
+          gap: '12px'
         }}>
-          <img 
-            src={JoiAppLogo} 
-            alt="JoiApp Logo" 
-            style={{
-              width: '100%',      // Fill the container
-              height: '100%',     // Fill the container
-              borderRadius: '12px',
-              objectFit: 'cover'  // Ensure proper scaling
-            }}
-          />
- 
+          <div style={{
+            width: '48px',
+            height: '48px',
+            borderRadius: '12px',
+            background: 'white',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '4px'
+          }}>
+            <img 
+              src={JoiAppLogo} 
+              alt="JoiApp Logo" 
+              style={{
+                width: '100%',
+                height: '100%',
+                borderRadius: '8px',
+                objectFit: 'cover'
+              }}
+            />
+          </div>
           <h1 style={{
             fontSize: '24px',
             fontWeight: '700',
@@ -119,15 +123,17 @@ const LandingPage = () => {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  margin: '0 auto 24px auto'
+                  margin: '0 auto 24px auto',
+                  padding: '8px'
                 }}>
                   <img 
                     src={JoiAppLogo} 
                     alt="JoiApp Logo" 
                     style={{
-                      width: '48px',
-                      height: '48px',
-                      borderRadius: '12px'
+                      width: '100%',
+                      height: '100%',
+                      borderRadius: '12px',
+                      objectFit: 'cover'
                     }}
                   />
                 </div>
