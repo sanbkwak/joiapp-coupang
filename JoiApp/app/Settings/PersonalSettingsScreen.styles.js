@@ -38,9 +38,11 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#000000',
   },
+
+  // Account
   accountRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -50,21 +52,22 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E5E5E5',
   },
-  accountName: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#000000',
-  },
   accountEmail: {
-    fontSize: 14,
-    color: '#666666',
-    marginTop: 2,
+    fontSize: 16,
+    color: '#000000',
   },
   editButton: {
     fontSize: 16,
     color: '#007AFF',
-    fontWeight: '500',
+    fontWeight: '600',
   },
+  points: {
+    fontSize: 16,
+    color: '#000000',
+    fontWeight: '600',
+  },
+
+  // Menu rows
   menuRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -82,19 +85,25 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#666666',
   },
-  settingRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
-  },
+
+  // Settings
   languageText: {
     fontSize: 16,
     color: '#666666',
   },
+
+  // Consents
+  toggleRowRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  helperText: {
+    fontSize: 12,
+    color: '#666666',
+  },
+
+  // Footer
   footer: {
     alignItems: 'center',
     paddingVertical: 15,
@@ -102,6 +111,74 @@ const styles = StyleSheet.create({
   footerVersion: {
     fontSize: 14,
     color: '#666666',
+  },
+
+  // Danger Zone
+  dangerZone: {
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    backgroundColor: '#FFF5F5',
+    borderTopWidth: 1,
+    borderTopColor: '#F0D0D0',
+  },
+  dangerTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#B00020',
+    marginBottom: 10,
+  },
+  dangerButton: {
+    borderWidth: 1,
+    borderColor: '#B00020',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  dangerButtonText: {
+    color: '#B00020',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  dangerText: {
+    color: '#B00020',
+  },
+
+  // Modal
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    paddingVertical: 10,
+    overflow: 'hidden',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  modalRow: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderTopWidth: 1,
+    borderTopColor: '#EFEFEF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  modalText: {
+    fontSize: 16,
+    color: '#000000',
+  },
+  modalCheck: {
+    fontSize: 18,
   },
 });
 
