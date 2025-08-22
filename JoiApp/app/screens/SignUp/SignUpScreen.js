@@ -11,12 +11,14 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import styles from './SignUpScreen.styles';
 
 const isEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 
 export default function SignUpScreen({ onSuccess }) {
   const router = useRouter();
+  const { t } = useTranslation();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -30,16 +32,16 @@ export default function SignUpScreen({ onSuccess }) {
   const validate = () => {
     const next = { email: '', password: '', confirm: '' };
 
-    if (!email) next.email = 'Email is required';
-    else if (!isEmail(email)) next.email = 'Please enter a valid email address';
+    if (!email) next.email = t('auth.required', { defaultValue: 'Email is required' });
+    else if (!isEmail(email)) next.email = t('auth.invalidEmail', { defaultValue: 'Please enter a valid email address' });
 
-    if (!password) next.password = 'Password is required';
-    else if (password.length < 8) next.password = 'Password must be at least 8 characters';
+    if (!password) next.password = t('auth.required', { defaultValue: 'Password is required' });
+    else if (password.length < 8) next.password = t('auth.passwordMin8', { defaultValue: 'Password must be at least 8 characters' });
     else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password))
-      next.password = 'Include uppercase, lowercase, and a number';
+      next.password = t('auth.passwordComplexity', { defaultValue: 'Include uppercase, lowercase, and a number' });
 
-    if (!confirm) next.confirm = 'Please confirm your password';
-    else if (confirm !== password) next.confirm = 'Passwords do not match';
+    if (!confirm) next.confirm = t('auth.confirmPasswordRequired', { defaultValue: 'Please confirm your password' });
+    else if (confirm !== password) next.confirm = t('auth.passwordsDontMatch', { defaultValue: 'Passwords do not match' });
 
     setErrors(next);
     return !next.email && !next.password && !next.confirm;
@@ -59,7 +61,10 @@ export default function SignUpScreen({ onSuccess }) {
       if (onSuccess) onSuccess();
       else router.replace('/survey');
     } catch (e) {
-      Alert.alert('Sign up failed', 'Please try again.');
+      Alert.alert(
+        t('auth.signupFailedTitle', { defaultValue: 'Sign up failed' }),
+        t('auth.signupFailedMsg', { defaultValue: 'Please try again.' })
+      );
     } finally {
       setIsLoading(false);
     }
@@ -72,23 +77,27 @@ export default function SignUpScreen({ onSuccess }) {
       <View style={styles.card}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Join JoiApp to start your wellness journey</Text>
+          <Text style={styles.title}>
+            {t('auth.createAccount', { defaultValue: 'Create Account' })}
+          </Text>
+          <Text style={styles.subtitle}>
+            {t('auth.joinSubtitle', { defaultValue: 'Join JoiApp to start your wellness journey' })}
+          </Text>
         </View>
 
         {/* Email */}
         <View style={styles.group}>
-          <Text style={styles.label}>Email</Text>
+          <Text style={styles.label}>{t('auth.email', { defaultValue: 'Email' })}</Text>
           <View style={wrap(!!errors.email)}>
             <TextInput
               style={styles.input}
-              placeholder="Enter your email"
+              placeholder={t('auth.emailPlaceholder', { defaultValue: 'Enter your email' })}
               placeholderTextColor="#9CA3AF"
               autoCapitalize="none"
               keyboardType="email-address"
               value={email}
-              onChangeText={(t) => {
-                setEmail(t);
+              onChangeText={(tval) => {
+                setEmail(tval);
                 if (errors.email) setErrors((e) => ({ ...e, email: '' }));
               }}
               returnKeyType="next"
@@ -99,22 +108,24 @@ export default function SignUpScreen({ onSuccess }) {
 
         {/* Password */}
         <View style={styles.group}>
-          <Text style={styles.label}>Password</Text>
+          <Text style={styles.label}>{t('auth.password', { defaultValue: 'Password' })}</Text>
           <View style={wrap(!!errors.password)}>
             <TextInput
               style={styles.input}
-              placeholder="Create a password"
+              placeholder={t('auth.createPasswordPlaceholder', { defaultValue: 'Create a password' })}
               placeholderTextColor="#9CA3AF"
               secureTextEntry={!showPassword}
               value={password}
-              onChangeText={(t) => {
-                setPassword(t);
+              onChangeText={(tval) => {
+                setPassword(tval);
                 if (errors.password) setErrors((e) => ({ ...e, password: '' }));
               }}
               returnKeyType="next"
             />
             <TouchableOpacity onPress={() => setShowPassword((s) => !s)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={styles.toggleText}>{showPassword ? 'Hide' : 'Show'}</Text>
+              <Text style={styles.toggleText}>
+                {showPassword ? t('auth.hide', { defaultValue: 'Hide' }) : t('auth.show', { defaultValue: 'Show' })}
+              </Text>
             </TouchableOpacity>
           </View>
           {!!errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
@@ -122,23 +133,25 @@ export default function SignUpScreen({ onSuccess }) {
 
         {/* Confirm Password */}
         <View style={styles.group}>
-          <Text style={styles.label}>Confirm Password</Text>
+          <Text style={styles.label}>{t('auth.confirmPassword', { defaultValue: 'Confirm Password' })}</Text>
           <View style={wrap(!!errors.confirm)}>
             <TextInput
               style={styles.input}
-              placeholder="Confirm your password"
+              placeholder={t('auth.confirmPasswordPlaceholder', { defaultValue: 'Confirm your password' })}
               placeholderTextColor="#9CA3AF"
               secureTextEntry={!showConfirm}
               value={confirm}
-              onChangeText={(t) => {
-                setConfirm(t);
+              onChangeText={(tval) => {
+                setConfirm(tval);
                 if (errors.confirm) setErrors((e) => ({ ...e, confirm: '' }));
               }}
               returnKeyType="done"
               onSubmitEditing={handleSignUp}
             />
             <TouchableOpacity onPress={() => setShowConfirm((s) => !s)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={styles.toggleText}>{showConfirm ? 'Hide' : 'Show'}</Text>
+              <Text style={styles.toggleText}>
+                {showConfirm ? t('auth.hide', { defaultValue: 'Hide' }) : t('auth.show', { defaultValue: 'Show' })}
+              </Text>
             </TouchableOpacity>
           </View>
           {!!errors.confirm && <Text style={styles.errorText}>{errors.confirm}</Text>}
@@ -154,18 +167,26 @@ export default function SignUpScreen({ onSuccess }) {
           {isLoading ? (
             <View style={styles.loadingRow}>
               <ActivityIndicator size="small" color="#fff" />
-              <Text style={[styles.buttonText, { marginLeft: 8 }]}>Creating Account...</Text>
+              <Text style={[styles.buttonText, { marginLeft: 8 }]}>
+                {t('auth.creatingAccount', { defaultValue: 'Creating Account...' })}
+              </Text>
             </View>
           ) : (
-            <Text style={styles.buttonText}>Create Account</Text>
+            <Text style={styles.buttonText}>
+              {t('auth.createAccount', { defaultValue: 'Create Account' })}
+            </Text>
           )}
         </TouchableOpacity>
 
         {/* Already have account */}
         <View style={styles.signupRow}>
-          <Text style={styles.signupText}>Already have an account? </Text>
+          <Text style={styles.signupText}>
+            {t('auth.haveAccountPrefix', { defaultValue: 'Already have an account? ' })}
+          </Text>
           <TouchableOpacity onPress={() => router.replace('/auth/login')}>
-            <Text style={styles.signupLink}>Log in</Text>
+            <Text style={styles.signupLink}>
+              {t('auth.login', { defaultValue: 'Log in' })}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>

@@ -1,11 +1,15 @@
+// app/_layout.tsx
 import React from 'react';
 import { Stack } from 'expo-router';
-import { I18nProvider } from './i18n/I18nProvider';
+import { LanguageProvider } from './providers/LanguageProvider';
+import i18n, { initI18n } from './i18n/translations'; // ← import the init
+
+initI18n(); // ← initialize i18next exactly once
 
 export default function RootLayout() {
   return (
-    <I18nProvider>
+    <LanguageProvider>
       <Stack screenOptions={{ headerShown: false }} />
-    </I18nProvider>
+    </LanguageProvider>
   );
 }
