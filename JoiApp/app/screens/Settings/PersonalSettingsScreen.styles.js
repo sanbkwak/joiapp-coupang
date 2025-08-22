@@ -180,6 +180,9 @@ const styles = StyleSheet.create({
   modalCheck: {
     fontSize: 18,
   },
+  scrollContent: {
+  paddingBottom: 40,
+  },
 });
 
 export default styles;
