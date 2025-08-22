@@ -5,20 +5,22 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import styles from './OnboardingScreen.styles'; // keep your styles next to this file
 
 const { width } = Dimensions.get('window');
 
 export default function OnboardingScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
 
   const steps = [
-    { id: 'welcome', title: 'Welcome & Onboarding' },
-    { id: 'input-selection', title: 'Emotion Input Selection' },
-    { id: 'voice-capture', title: 'Voice Input Capture' },
-    { id: 'ai-analysis', title: 'AI Analysis & Processing' },
-    { id: 'recommendations', title: 'Wellness Recommendations' },
-    { id: 'progress', title: 'Progress & History' }, // final
+    { id: 'welcome',          title: t('onboarding.steps.welcome',          { defaultValue: 'Welcome & Onboarding' }) },
+    { id: 'input-selection',  title: t('onboarding.steps.inputSelection',   { defaultValue: 'Emotion Input Selection' }) },
+    { id: 'voice-capture',    title: t('onboarding.steps.voiceCapture',     { defaultValue: 'Voice Input Capture' }) },
+    { id: 'ai-analysis',      title: t('onboarding.steps.aiAnalysis',       { defaultValue: 'AI Analysis & Processing' }) },
+    { id: 'recommendations',  title: t('onboarding.steps.recommendations',  { defaultValue: 'Wellness Recommendations' }) },
+    { id: 'progress',         title: t('onboarding.steps.progress',         { defaultValue: 'Progress & History' }) }, // final
   ];
 
   const [currentStep, setCurrentStep] = useState(0);
@@ -105,8 +107,12 @@ export default function OnboardingScreen() {
     <ScrollView style={styles.stepContainer} showsVerticalScrollIndicator={false}>
       <View style={styles.logoContainer}>
         <View style={styles.logo}><Text style={styles.logoText}>♥</Text></View>
-        <Text style={styles.appTitle}>Joi App</Text>
-        <Text style={styles.subtitle}>AI driven emotional wellness with Metaverse action</Text>
+        <Text style={styles.appTitle}>{t('common.appName', { defaultValue: 'Joi App' })}</Text>
+        <Text style={styles.subtitle}>
+          {t('onboarding.subtitle', {
+            defaultValue: 'Private, secure wellbeing check-ins.',
+          })}
+        </Text>
       </View>
 
       <View style={styles.featuresContainer}>
@@ -114,46 +120,70 @@ export default function OnboardingScreen() {
           <View style={[styles.featureIcon, { backgroundColor: '#FFEBEE' }]}>
             <Text style={[styles.featureIconText, { color: '#FF5252' }]}>♥</Text>
           </View>
-          <Text style={styles.featureTitle}>Multimodal Tracking</Text>
-          <Text style={styles.featureDescription}>Face, voice, text, and surveys</Text>
+          <Text style={styles.featureTitle}>
+            {t('onboarding.features.multimodalTitle', { defaultValue: 'Multimodal Tracking' })}
+          </Text>
+          <Text style={styles.featureDescription}>
+            {t('onboarding.features.multimodalDesc', { defaultValue: 'Face, voice, text, and surveys' })}
+          </Text>
         </View>
+
         <View style={[styles.featureCard, { borderLeftColor: '#2196F3' }]}>
           <View style={[styles.featureIcon, { backgroundColor: '#E3F2FD' }]}>
             <Text style={[styles.featureIconText, { color: '#2196F3' }]}>🧠</Text>
           </View>
-          <Text style={styles.featureTitle}>AI Insights</Text>
-          <Text style={styles.featureDescription}>Real-time signal analysis & trends</Text>
+          <Text style={styles.featureTitle}>
+            {t('onboarding.features.aiTitle', { defaultValue: 'AI Insights' })}
+          </Text>
+          <Text style={styles.featureDescription}>
+            {t('onboarding.features.aiDesc', { defaultValue: 'Real-time signal analysis & trends' })}
+          </Text>
         </View>
+
         <View style={[styles.featureCard, { borderLeftColor: '#4CAF50' }]}>
           <View style={[styles.featureIcon, { backgroundColor: '#E8F5E8' }]}>
             <Text style={[styles.featureIconText, { color: '#4CAF50' }]}>📈</Text>
           </View>
-          <Text style={styles.featureTitle}>Personalized Actions</Text>
-          <Text style={styles.featureDescription}>Recommendations tailored to you</Text>
+          <Text style={styles.featureTitle}>
+            {t('onboarding.features.actionsTitle', { defaultValue: 'Personalized Actions' })}
+          </Text>
+          <Text style={styles.featureDescription}>
+            {t('onboarding.features.actionsDesc', { defaultValue: 'Recommendations tailored to you' })}
+          </Text>
         </View>
       </View>
 
       <TouchableOpacity style={styles.primaryButton} onPress={nextStep}>
-        <Text style={styles.primaryButtonText}>Get Started</Text>
+        <Text style={styles.primaryButtonText}>
+          {t('onboarding.cta', { defaultValue: 'Get Started' })}
+        </Text>
       </TouchableOpacity>
     </ScrollView>
   );
 
   const renderInputSelection = () => (
     <ScrollView style={styles.stepContainer} showsVerticalScrollIndicator={false}>
-      <Text style={styles.stepTitle}>Emotion Input Selection</Text>
-      <Text style={styles.stepSubtitle}>Choose how you want to log your current state</Text>
+      <Text style={styles.stepTitle}>
+        {t('onboarding.steps.inputSelection', { defaultValue: 'Emotion Input Selection' })}
+      </Text>
+      <Text style={styles.stepSubtitle}>
+        {t('onboarding.input.subtitle', { defaultValue: 'Choose how you want to log your current state' })}
+      </Text>
 
       <View style={styles.inputInterface}>
-        <Text style={styles.questionText}>How are you feeling?</Text>
-        <Text style={styles.instructionText}>Pick an input method</Text>
+        <Text style={styles.questionText}>
+          {t('onboarding.input.question', { defaultValue: 'How are you feeling?' })}
+        </Text>
+        <Text style={styles.instructionText}>
+          {t('onboarding.input.pickMethod', { defaultValue: 'Pick an input method' })}
+        </Text>
 
         <View style={styles.inputMethodsGrid}>
           {[
-            { id: 'face', icon: '📷', label: 'Face' },
-            { id: 'voice', icon: '🎙️', label: 'Voice' },
-            { id: 'text', icon: '📝', label: 'Text' },
-            { id: 'survey', icon: '👤', label: 'Survey' },
+            { id: 'face',   icon: '📷', label: t('onboarding.input.face',   { defaultValue: 'Face' }) },
+            { id: 'voice',  icon: '🎙️', label: t('onboarding.input.voice',  { defaultValue: 'Voice' }) },
+            { id: 'text',   icon: '📝', label: t('onboarding.input.text',   { defaultValue: 'Text' }) },
+            { id: 'survey', icon: '👤', label: t('onboarding.input.survey', { defaultValue: 'Survey' }) },
           ].map((m) => (
             <TouchableOpacity
               key={m.id}
@@ -174,15 +204,21 @@ export default function OnboardingScreen() {
       </View>
 
       <TouchableOpacity style={styles.primaryButton} onPress={nextStep}>
-        <Text style={styles.primaryButtonText}>Continue with Voice</Text>
+        <Text style={styles.primaryButtonText}>
+          {t('onboarding.input.continueVoice', { defaultValue: 'Continue with Voice' })}
+        </Text>
       </TouchableOpacity>
     </ScrollView>
   );
 
   const renderVoiceCapture = () => (
     <ScrollView style={styles.stepContainer} showsVerticalScrollIndicator={false}>
-      <Text style={styles.stepTitle}>Voice Input Capture</Text>
-      <Text style={styles.stepSubtitle}>Record how you're feeling right now</Text>
+      <Text style={styles.stepTitle}>
+        {t('onboarding.steps.voiceCapture', { defaultValue: 'Voice Input Capture' })}
+      </Text>
+      <Text style={styles.stepSubtitle}>
+        {t('onboarding.voice.subtitle', { defaultValue: "Record how you're feeling right now" })}
+      </Text>
 
       <View style={styles.recordingInterface}>
         <TouchableOpacity
@@ -194,8 +230,14 @@ export default function OnboardingScreen() {
           </Animated.View>
         </TouchableOpacity>
 
-        <Text style={styles.recordingStatus}>{isRecording ? 'Recording...' : 'Tap to record'}</Text>
-        <Text style={styles.recordingInstruction}>Speak freely for a few seconds</Text>
+        <Text style={styles.recordingStatus}>
+          {isRecording
+            ? t('onboarding.voice.recording', { defaultValue: 'Recording...' })
+            : t('onboarding.voice.tapToRecord', { defaultValue: 'Tap to record' })}
+        </Text>
+        <Text style={styles.recordingInstruction}>
+          {t('onboarding.voice.instruction', { defaultValue: 'Speak freely for a few seconds' })}
+        </Text>
 
         {isRecording && (
           <View style={styles.waveform}>
@@ -214,7 +256,9 @@ export default function OnboardingScreen() {
             style={[styles.primaryButton, { backgroundColor: '#FF5252' }]}
             onPress={() => { setIsRecording(false); setTimeout(() => nextStep(), 400); }}
           >
-            <Text style={styles.primaryButtonText}>Stop Recording</Text>
+            <Text style={styles.primaryButtonText}>
+              {t('onboarding.voice.stop', { defaultValue: 'Stop Recording' })}
+            </Text>
           </TouchableOpacity>
         )}
       </View>
@@ -223,25 +267,31 @@ export default function OnboardingScreen() {
 
   const renderAnalysis = () => (
     <ScrollView style={styles.stepContainer} showsVerticalScrollIndicator={false}>
-      <Text style={styles.stepTitle}>AI Analysis & Processing</Text>
-      <Text style={styles.stepSubtitle}>We analyze your signals to understand your state</Text>
+      <Text style={styles.stepTitle}>
+        {t('onboarding.steps.aiAnalysis', { defaultValue: 'AI Analysis & Processing' })}
+      </Text>
+      <Text style={styles.stepSubtitle}>
+        {t('onboarding.analysis.subtitle', { defaultValue: 'We analyze your signals to understand your state' })}
+      </Text>
 
       <View style={styles.analysisInterface}>
         <View style={styles.analysisIcon}><Text style={styles.analysisIconText}>⏱️</Text></View>
-        <Text style={styles.analysisTitle}>AI Analysis</Text>
-        <Text style={styles.analysisSubtitle}>Processing your emotional data...</Text>
+        <Text style={styles.analysisTitle}>{t('onboarding.analysis.title', { defaultValue: 'AI Analysis' })}</Text>
+        <Text style={styles.analysisSubtitle}>
+          {t('onboarding.analysis.processing', { defaultValue: 'Processing your emotional data...' })}
+        </Text>
 
         <View style={styles.metrics}>
           <View style={styles.metric}>
-            <Text style={styles.metricLabel}>Emotion Detection</Text>
-            <Text style={styles.metricValue}>Stressed</Text>
+            <Text style={styles.metricLabel}>{t('onboarding.analysis.emotion', { defaultValue: 'Emotion Detection' })}</Text>
+            <Text style={styles.metricValue}>{t('onboarding.analysis.emotionValue', { defaultValue: 'Stressed' })}</Text>
           </View>
           <View style={styles.metricBar}>
             <View style={[styles.metricFill, { width: `${analysisProgress.emotion}%`, backgroundColor: '#FF5252' }]} />
           </View>
 
           <View style={styles.metric}>
-            <Text style={styles.metricLabel}>Confidence Level</Text>
+            <Text style={styles.metricLabel}>{t('onboarding.analysis.confidence', { defaultValue: 'Confidence Level' })}</Text>
             <Text style={styles.metricValue}>{analysisProgress.confidence}%</Text>
           </View>
           <View style={styles.metricBar}>
@@ -250,29 +300,52 @@ export default function OnboardingScreen() {
         </View>
 
         <View style={styles.insightsBox}>
-          <Text style={styles.insightsTitle}>Insights</Text>
+          <Text style={styles.insightsTitle}>{t('onboarding.analysis.insightsTitle', { defaultValue: 'Insights' })}</Text>
           <Text style={styles.insightsText}>
-            Elevated stress detected. Try a 5-minute breathing exercise or a short walk.
+            {t('onboarding.analysis.insightsText', {
+              defaultValue: 'Elevated stress detected. Try a 5-minute breathing exercise or a short walk.',
+            })}
           </Text>
         </View>
       </View>
 
       <TouchableOpacity style={styles.primaryButton} onPress={nextStep}>
-        <Text style={styles.primaryButtonText}>View Recommendations</Text>
+        <Text style={styles.primaryButtonText}>
+          {t('onboarding.analysis.viewRecs', { defaultValue: 'View Recommendations' })}
+        </Text>
       </TouchableOpacity>
     </ScrollView>
   );
 
   const renderRecommendations = () => (
     <ScrollView style={styles.stepContainer} showsVerticalScrollIndicator={false}>
-      <Text style={styles.stepTitle}>Wellness Recommendations</Text>
-      <Text style={styles.stepSubtitle}>Personalized activities based on your state</Text>
+      <Text style={styles.stepTitle}>
+        {t('onboarding.steps.recommendations', { defaultValue: 'Wellness Recommendations' })}
+      </Text>
+      <Text style={styles.stepSubtitle}>
+        {t('onboarding.recs.subtitle', { defaultValue: 'Personalized activities based on your state' })}
+      </Text>
 
       <View style={styles.featuresContainer}>
         {[
-          { id: 1, icon: '🫁', title: '5-min Breathing', subtitle: 'Reduce stress ~40%', c: '#E3F2FD', ic: '#2196F3' },
-          { id: 2, icon: '🚶', title: '10-min Walk', subtitle: 'Boost mood naturally', c: '#E8F5E8', ic: '#4CAF50' },
-          { id: 3, icon: '📞', title: 'Call a Friend', subtitle: 'Social support matters', c: '#FCE4EC', ic: '#E91E63' },
+          {
+            id: 1, icon: '🫁',
+            title: t('onboarding.recs.breatheTitle', { defaultValue: '5-min Breathing' }),
+            subtitle: t('onboarding.recs.breatheSub', { defaultValue: 'Reduce stress ~40%' }),
+            c: '#E3F2FD', ic: '#2196F3'
+          },
+          {
+            id: 2, icon: '🚶',
+            title: t('onboarding.recs.walkTitle', { defaultValue: '10-min Walk' }),
+            subtitle: t('onboarding.recs.walkSub', { defaultValue: 'Boost mood naturally' }),
+            c: '#E8F5E8', ic: '#4CAF50'
+          },
+          {
+            id: 3, icon: '📞',
+            title: t('onboarding.recs.callTitle', { defaultValue: 'Call a Friend' }),
+            subtitle: t('onboarding.recs.callSub', { defaultValue: 'Social support matters' }),
+            c: '#FCE4EC', ic: '#E91E63'
+          },
         ].map((card) => (
           <View key={card.id} style={[styles.featureCard, { borderLeftColor: card.ic, backgroundColor: '#F8F9FA' }]}>
             <View style={[styles.featureIcon, { backgroundColor: card.c }]}>
@@ -285,24 +358,36 @@ export default function OnboardingScreen() {
       </View>
 
       <TouchableOpacity style={styles.primaryButton} onPress={nextStep}>
-        <Text style={styles.primaryButtonText}>Continue</Text>
+        <Text style={styles.primaryButtonText}>
+          {t('common.continue', { defaultValue: 'Continue' })}
+        </Text>
       </TouchableOpacity>
     </ScrollView>
   );
 
   const renderProgress = () => (
     <ScrollView style={styles.stepContainer} showsVerticalScrollIndicator={false}>
-      <Text style={styles.stepTitle}>Progress & History</Text>
-      <Text style={styles.stepSubtitle}>Track improvements and revisit past insights</Text>
+      <Text style={styles.stepTitle}>
+        {t('onboarding.steps.progress', { defaultValue: 'Progress & History' })}
+      </Text>
+      <Text style={styles.stepSubtitle}>
+        {t('onboarding.progress.subtitle', { defaultValue: 'Track improvements and revisit past insights' })}
+      </Text>
 
       <View style={styles.inputInterface}>
-        <Text style={styles.questionText}>Your first week starts now ✨</Text>
-        <Text style={styles.instructionText}>Complete a quick daily check-in to build a habit.</Text>
+        <Text style={styles.questionText}>
+          {t('onboarding.progress.weekStart', { defaultValue: 'Your first week starts now ✨' })}
+        </Text>
+        <Text style={styles.instructionText}>
+          {t('onboarding.progress.habit', { defaultValue: 'Complete a quick daily check-in to build a habit.' })}
+        </Text>
       </View>
 
       {/* Final CTA → finish onboarding */}
       <TouchableOpacity style={styles.primaryButton} onPress={finishOnboarding}>
-        <Text style={styles.primaryButtonText}>Continue to Login</Text>
+        <Text style={styles.primaryButtonText}>
+          {t('onboarding.progress.toLogin', { defaultValue: 'Continue to Login' })}
+        </Text>
       </TouchableOpacity>
     </ScrollView>
   );

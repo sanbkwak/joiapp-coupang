@@ -10,10 +10,12 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import styles from './LoginScreen.styles';
 
 export default function LoginScreen({ onSuccess }) {
   const router = useRouter();
+  const { t } = useTranslation();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -32,18 +34,22 @@ export default function LoginScreen({ onSuccess }) {
     let hasErrors = false;
 
     if (!email) {
-      setEmailError('Email is required');
+      setEmailError(t('auth.required', { defaultValue: 'Email is required' }));
       hasErrors = true;
     } else if (!validateEmail(email)) {
-      setEmailError('Please enter a valid email address');
+      setEmailError(
+        t('auth.invalidEmail', { defaultValue: 'Please enter a valid email address' })
+      );
       hasErrors = true;
     }
 
     if (!password) {
-      setPasswordError('Password is required');
+      setPasswordError(t('auth.required', { defaultValue: 'Password is required' }));
       hasErrors = true;
     } else if (password.length < 6) {
-      setPasswordError('Password must be at least 6 characters');
+      setPasswordError(
+        t('auth.passwordMin', { defaultValue: 'Password must be at least 6 characters' })
+      );
       hasErrors = true;
     }
 
@@ -61,7 +67,10 @@ export default function LoginScreen({ onSuccess }) {
       if (onSuccess) onSuccess();
       else router.replace('/survey');
     } catch (e) {
-      Alert.alert('Login failed', 'Please try again.');
+      Alert.alert(
+        t('auth.loginFailedTitle', { defaultValue: 'Login failed' }),
+        t('auth.loginFailedMsg', { defaultValue: 'Please try again.' })
+      );
     } finally {
       setIsLoading(false);
     }
@@ -72,13 +81,17 @@ export default function LoginScreen({ onSuccess }) {
       <View style={styles.card}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>JoiApp</Text>
-          <Text style={styles.subtitle}>Welcome back! Please sign in</Text>
+          <Text style={styles.title}>
+            {t('common.appName', { defaultValue: 'JoiApp' })}
+          </Text>
+          <Text style={styles.subtitle}>
+            {t('auth.welcomeBack', { defaultValue: 'Welcome back! Please sign in' })}
+          </Text>
         </View>
 
         {/* Email */}
         <View style={styles.group}>
-          <Text style={styles.label}>Email</Text>
+          <Text style={styles.label}>{t('auth.email', { defaultValue: 'Email' })}</Text>
           <View
             style={[
               styles.inputWrapper,
@@ -87,13 +100,13 @@ export default function LoginScreen({ onSuccess }) {
           >
             <TextInput
               style={styles.input}
-              placeholder="Enter your email"
+              placeholder={t('auth.emailPlaceholder', { defaultValue: 'Enter your email' })}
               placeholderTextColor="#9CA3AF"
               autoCapitalize="none"
               keyboardType="email-address"
               value={email}
-              onChangeText={(t) => {
-                setEmail(t);
+              onChangeText={(tval) => {
+                setEmail(tval);
                 if (emailError) setEmailError('');
               }}
               returnKeyType="next"
@@ -104,23 +117,21 @@ export default function LoginScreen({ onSuccess }) {
 
         {/* Password */}
         <View style={styles.group}>
-          <Text style={styles.label}>Password</Text>
+          <Text style={styles.label}>{t('auth.password', { defaultValue: 'Password' })}</Text>
           <View
             style={[
               styles.inputWrapper,
-              passwordError
-                ? styles.inputWrapperError
-                : styles.inputWrapperNormal,
+              passwordError ? styles.inputWrapperError : styles.inputWrapperNormal,
             ]}
           >
             <TextInput
               style={styles.input}
-              placeholder="Enter your password"
+              placeholder={t('auth.passwordPlaceholder', { defaultValue: 'Enter your password' })}
               placeholderTextColor="#9CA3AF"
               secureTextEntry={!showPassword}
               value={password}
-              onChangeText={(t) => {
-                setPassword(t);
+              onChangeText={(tval) => {
+                setPassword(tval);
                 if (passwordError) setPasswordError('');
               }}
               returnKeyType="done"
@@ -131,7 +142,9 @@ export default function LoginScreen({ onSuccess }) {
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <Text style={styles.toggleText}>
-                {showPassword ? 'Hide' : 'Show'}
+                {showPassword
+                  ? t('auth.hide', { defaultValue: 'Hide' })
+                  : t('auth.show', { defaultValue: 'Show' })}
               </Text>
             </TouchableOpacity>
           </View>
@@ -144,10 +157,15 @@ export default function LoginScreen({ onSuccess }) {
         <View style={styles.rightRow}>
           <TouchableOpacity
             onPress={() =>
-              Alert.alert('Not implemented', 'Password reset coming soon.')
+              Alert.alert(
+                t('common.notImplemented', { defaultValue: 'Not implemented' }),
+                t('auth.resetComing', { defaultValue: 'Password reset coming soon.' })
+              )
             }
           >
-            <Text style={styles.link}>Forgot Password?</Text>
+            <Text style={styles.link}>
+              {t('auth.forgot', { defaultValue: 'Forgot Password?' })}
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -165,19 +183,25 @@ export default function LoginScreen({ onSuccess }) {
             <View style={styles.loadingRow}>
               <ActivityIndicator size="small" color="#fff" />
               <Text style={[styles.buttonText, { marginLeft: 8 }]}>
-                Signing In...
+                {t('auth.signingIn', { defaultValue: 'Signing In...' })}
               </Text>
             </View>
           ) : (
-            <Text style={styles.buttonText}>Sign In</Text>
+            <Text style={styles.buttonText}>
+              {t('auth.login', { defaultValue: 'Sign In' })}
+            </Text>
           )}
         </TouchableOpacity>
 
         {/* Go to Sign Up */}
         <View style={styles.signupRow}>
-          <Text style={styles.signupText}>No account? </Text>
+          <Text style={styles.signupText}>
+            {t('auth.noAccount', { defaultValue: 'No account? ' })}
+          </Text>
           <TouchableOpacity onPress={() => router.push('/auth/signup')}>
-            <Text style={styles.signupLink}>Sign up</Text>
+            <Text style={styles.signupLink}>
+              {t('auth.signupCta', { defaultValue: 'Sign up' })}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>

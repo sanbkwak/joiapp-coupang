@@ -1,24 +1,15 @@
-// src/screens/Settings/PersonalSettingsScreen.js
+// app/screens/Settings/PersonalSettingsScreen.js
 import React, { useMemo, useState, useEffect } from 'react';
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  SafeAreaView,
-  Switch,
-  Alert,
-  Modal,
-  Pressable,
-  Linking,
-  Platform,
-  ScrollView,
+  View, Text, TouchableOpacity, SafeAreaView, Switch, Alert,
+  Modal, Pressable, Linking, Platform, ScrollView,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import { useI18n } from '../../i18n/I18nProvider';      // 🔑 global i18n
+import { useTranslation } from 'react-i18next';            // ✅ use t from react-i18next
+import { useLanguage } from '../../providers/LanguageProvider'; // for setLanguage only
 import styles from './PersonalSettingsScreen.styles';
 
-// Storage keys
 const KEYS = {
   token: 'authToken',
   language: 'appLanguage',               // 'system' | 'en' | 'ko'
@@ -26,7 +17,7 @@ const KEYS = {
   consentTs: 'dataUsageChangedAt',
 };
 
-// Helpers
+// helpers
 const maskEmail = (email) => {
   if (!email || !email.includes('@')) return '';
   const [user, domain] = email.split('@');
@@ -36,10 +27,13 @@ const maskEmail = (email) => {
 
 const openStatic = (url, t) =>
   Linking.openURL(url).catch(() => {
-    Alert.alert(t('unavailable') || 'Unavailable', t('page_not_ready') || 'This page is not available yet.');
+    Alert.alert(
+      t('settingsExtra.unavailable', { defaultValue: 'Unavailable' }),
+      t('settingsExtra.page_not_ready', { defaultValue: 'This page is not available yet.' })
+    );
   });
 
-// Local “API” stubs backed by AsyncStorage so things persist
+// async “api” backed by storage
 const saveConsent = async (enabled) => {
   try {
     const ts = new Date().toISOString();
@@ -50,7 +44,6 @@ const saveConsent = async (enabled) => {
     return { ok: false };
   }
 };
-
 const withdrawConsentLocal = async () => {
   try {
     const ts = new Date().toISOString();
@@ -61,7 +54,6 @@ const withdrawConsentLocal = async () => {
     return { ok: false };
   }
 };
-
 const persistLanguage = async (lang) => {
   try {
     await AsyncStorage.setItem(KEYS.language, lang);
@@ -70,13 +62,9 @@ const persistLanguage = async (lang) => {
     return false;
   }
 };
+const sendDeleteAccount = async () => true;
 
-const sendDeleteAccount = async () => {
-  // Replace with your real API call later
-  return true;
-};
-
-// Small UI helpers
+// small UI helpers
 const MenuRow = ({ title, onPress, showArrow = true, rightComponent = null, danger = false }) => (
   <TouchableOpacity style={styles.menuRow} onPress={onPress}>
     <Text style={[styles.menuText, danger && styles.dangerText]}>{title}</Text>
@@ -85,7 +73,6 @@ const MenuRow = ({ title, onPress, showArrow = true, rightComponent = null, dang
     )}
   </TouchableOpacity>
 );
-
 const SectionHeader = ({ children }) => (
   <View style={styles.section}>
     <Text style={styles.sectionTitle}>{children}</Text>
@@ -94,18 +81,19 @@ const SectionHeader = ({ children }) => (
 
 export default function PersonalSettingsScreen() {
   const router = useRouter();
-  const { t, setLocale } = useI18n();  // 🔑 app-wide translator + setter
+  const { t } = useTranslation();         // ✅ use this t
+  const { setLanguage } = useLanguage();  // ✅ change language via provider
 
-  // Load persisted language once so the modal reflects saved choice
-  const [language, setLanguage] = useState('en'); // 'system' | 'en' | 'ko'
+  // language modal state mirrors persisted choice
+  const [uiLanguage, setUiLanguage] = useState('en');
   useEffect(() => {
     (async () => {
       const savedLang = await AsyncStorage.getItem(KEYS.language);
-      if (savedLang) setLanguage(savedLang);
+      if (savedLang) setUiLanguage(savedLang);
     })();
   }, []);
 
-  // Replace with real values when you have user data
+  // mock user bits
   const email = 'alexwong@example.com';
   const masked = useMemo(() => maskEmail(email), [email]);
   const [canEdit] = useState(true);
@@ -117,17 +105,19 @@ export default function PersonalSettingsScreen() {
   const [consentMeta, setConsentMeta] = useState({ version: 'v1.0', ts: '2025-08-20' });
 
   const languageLabel =
-    language === 'system' ? (t('follow_system') || 'Follow system')
-    : language === 'ko' ? '한국어'
-    : 'English';
+    uiLanguage === 'system'
+      ? t('language.followSystem')
+      : uiLanguage === 'ko'
+        ? t('language.korean')
+        : t('language.english');
 
-  // Handlers
+  // handlers
   const onToggleDataUsage = async (val) => {
     setDataUsage(val);
     const { ok, ts } = await saveConsent(val);
     if (!ok) {
       setDataUsage(!val);
-      Alert.alert(t('error') || 'Error', t('consent_update_failed') || 'Could not update consent. Please try again.');
+      Alert.alert(t('settingsExtra.error'), t('settingsExtra.consent_update_failed'));
     } else {
       setConsentMeta((m) => ({ ...m, ts: ts?.slice(0, 10) || m.ts }));
     }
@@ -135,31 +125,26 @@ export default function PersonalSettingsScreen() {
 
   const handleEditPress = () => {
     if (!canEdit) return;
-    Alert.alert(t('edit_email') || 'Edit Email', t('edit_email_desc') || 'Email edit screen goes here.');
-  };
-
-  const handleViewSurveyResults = () => {
-    router.push('/survey');
+    Alert.alert(t('settingsExtra.edit_email'), t('settingsExtra.edit_email_desc'));
   };
 
   const confirmWithdrawConsent = () => {
     Alert.alert(
-      t('withdraw_consent') || 'Withdraw Consent',
-      t('withdraw_consent_desc') || 'This will stop data collection and analysis immediately.',
+      t('settingsExtra.withdraw_consent'),
+      t('settingsExtra.withdraw_consent_desc'),
       [
-        { text: t('cancel') || 'Cancel', style: 'cancel' },
+        { text: t('settingsExtra.cancel'), style: 'cancel' },
         {
-          text: t('confirm') || 'Confirm',
+          text: t('settingsExtra.confirm'),
           style: 'destructive',
           onPress: async () => {
             const { ok, ts } = await withdrawConsentLocal();
             if (ok) {
               setDataUsage(false);
               setConsentMeta((m) => ({ ...m, ts: ts?.slice(0, 10) || m.ts }));
-              Alert.alert(t('consent_withdrawn') || 'Consent Withdrawn',
-                t('consent_withdrawn_desc') || 'We updated your settings and blocked analysis/uploads.');
+              Alert.alert(t('settingsExtra.consent_withdrawn'), t('settingsExtra.consent_withdrawn_desc'));
             } else {
-              Alert.alert(t('error') || 'Error', t('withdraw_failed') || 'Failed to withdraw consent. Please try again.');
+              Alert.alert(t('settingsExtra.error'), t('settingsExtra.withdraw_failed'));
             }
           },
         },
@@ -168,38 +153,40 @@ export default function PersonalSettingsScreen() {
   };
 
   const handleSignOut = () => {
-    Alert.alert(t('sign_out') || 'Sign Out', t('sign_out_confirm') || 'Are you sure you want to sign out?', [
-      { text: t('cancel') || 'Cancel', style: 'cancel' },
-      {
-        text: t('sign_out') || 'Sign Out',
-        style: 'destructive',
-        onPress: async () => {
-          await AsyncStorage.removeItem(KEYS.token);
-          router.replace('/auth/login');
+    Alert.alert(
+      t('settingsExtra.sign_out'),
+      t('settingsExtra.sign_out_confirm'),
+      [
+        { text: t('settingsExtra.cancel'), style: 'cancel' },
+        {
+          text: t('settingsExtra.sign_out'),
+          style: 'destructive',
+          onPress: async () => {
+            await AsyncStorage.removeItem(KEYS.token);
+            router.replace('/auth/login');
+          },
         },
-      },
-    ]);
+      ]
+    );
   };
 
   const handleDeleteAccount = () => {
     Alert.alert(
-      t('delete_account') || 'Delete Account',
-      t('delete_account_desc') || 'This is permanent. Your data will be deleted (subject to legal retention).',
+      t('settingsExtra.delete_account'),
+      t('settingsExtra.delete_account_desc'),
       [
-        { text: t('cancel') || 'Cancel', style: 'cancel' },
+        { text: t('settingsExtra.cancel'), style: 'cancel' },
         {
-          text: t('delete') || 'Delete',
+          text: t('settingsExtra.delete'),
           style: 'destructive',
           onPress: async () => {
             const ok = await sendDeleteAccount();
             if (ok) {
               await AsyncStorage.removeItem(KEYS.token);
-              Alert.alert(t('deleted') || 'Deleted',
-                t('deleted_desc') || 'Your account is scheduled for deletion. You will be logged out.');
+              Alert.alert(t('settingsExtra.deleted'), t('settingsExtra.deleted_desc'));
               router.replace('/auth/login');
             } else {
-              Alert.alert(t('error') || 'Error',
-                t('delete_failed') || 'Could not delete account. Please try again.');
+              Alert.alert(t('settingsExtra.error'), t('settingsExtra.delete_failed'));
             }
           },
         },
@@ -207,15 +194,14 @@ export default function PersonalSettingsScreen() {
     );
   };
 
-  // Change language app-wide (updates provider + persists choice)
   const selectLanguage = async (key) => {
-    setLanguage(key);          // reflects in the modal label
+    setUiLanguage(key);
     await persistLanguage(key);
-    await setLocale(key);      // 🔑 updates the global provider → whole app re-renders
+    await setLanguage(key);  // calls i18n.changeLanguage under the hood
     setLangModal(false);
   };
 
-  // 🔽 FULL RETURN (scrollable)
+  // render
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
@@ -227,44 +213,44 @@ export default function PersonalSettingsScreen() {
         <View style={styles.card}>
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.title}>{t('personal') || 'Personal'}</Text>
-            <Text style={styles.version}>{(t('version') || 'Version')} 1.0</Text>
+            <Text style={styles.title}>{t('settingsExtra.personal')}</Text>
+            <Text style={styles.version}>{t('settingsExtra.version')} 1.0</Text>
           </View>
 
           {/* Account */}
-          <SectionHeader>{t('account') || 'Account'}</SectionHeader>
+          <SectionHeader>{t('settingsExtra.account')}</SectionHeader>
           <View style={styles.accountRow}>
             <View>
               <Text style={styles.accountEmail}>{masked}</Text>
             </View>
             {canEdit && (
               <TouchableOpacity onPress={handleEditPress}>
-                <Text style={styles.editButton}>{t('edit') || 'Edit'}</Text>
+                <Text style={styles.editButton}>{t('settingsExtra.edit')}</Text>
               </TouchableOpacity>
             )}
           </View>
           <MenuRow
-            title={t('myPoint') || 'My Point'}
+            title={t('settingsExtra.myPoint')}
             onPress={() => {}}
             showArrow={false}
             rightComponent={<Text style={styles.points}>{points} Szup</Text>}
           />
-          <MenuRow title={t('viewSurvey') || 'View Survey Results'} onPress={handleViewSurveyResults} />
+          <MenuRow title={t('settingsExtra.viewSurvey')} onPress={() => router.push('/survey')} />
 
           {/* Settings */}
-          <SectionHeader>{t('settings') || 'Settings'}</SectionHeader>
+          <SectionHeader>{t('settingsExtra.settings')}</SectionHeader>
           <MenuRow
-            title={t('language') || 'Language'}
+            title={t('settings.languageRow')}
             onPress={() => setLangModal(true)}
             rightComponent={<Text style={styles.languageText}>{languageLabel}</Text>}
           />
-          <MenuRow title={t('notifications') || 'Notifications'} onPress={() => Linking.openSettings?.()} />
-          <MenuRow title={t('cameraMic') || 'Camera & Microphone'} onPress={() => Linking.openSettings?.()} />
+          <MenuRow title={t('settingsExtra.notifications')} onPress={() => Linking.openSettings?.()} />
+          <MenuRow title={t('settingsExtra.cameraMic')} onPress={() => Linking.openSettings?.()} />
 
           {/* Consents */}
-          <SectionHeader>{t('consents') || 'Consents'}</SectionHeader>
+          <SectionHeader>{t('settingsExtra.consents')}</SectionHeader>
           <MenuRow
-            title={t('dataUsage') || 'Data Usage'}
+            title={t('settings.dataUsage')}
             onPress={() => {}}
             showArrow={false}
             rightComponent={
@@ -279,31 +265,31 @@ export default function PersonalSettingsScreen() {
               </View>
             }
           />
-          <MenuRow title={t('withdrawConsent') || 'Withdraw Consent'} onPress={confirmWithdrawConsent} />
+          <MenuRow title={t('settings.withdrawConsent')} onPress={confirmWithdrawConsent} />
 
           {/* Legal */}
-          <SectionHeader>{t('legal') || 'Legal'}</SectionHeader>
+          <SectionHeader>{t('settingsExtra.legal')}</SectionHeader>
           <MenuRow
-            title={t('dataValuation') || 'Joi Data Valuation Model'}
+            title={t('settingsExtra.dataValuation')}
             onPress={() => openStatic('https://example.com/legal/joi-data-valuation', t)}
           />
-          <MenuRow title={t('privacy') || 'Privacy Policy'} onPress={() => openStatic('https://example.com/legal/privacy', t)} />
-          <MenuRow title={t('terms') || 'Terms of Service'} onPress={() => openStatic('https://example.com/legal/terms', t)} />
+          <MenuRow title={t('settingsExtra.privacy')} onPress={() => openStatic('https://example.com/legal/privacy', t)} />
+          <MenuRow title={t('settingsExtra.terms')} onPress={() => openStatic('https://example.com/legal/terms', t)} />
 
           {/* Session */}
-          <MenuRow title={t('signOut') || 'Sign Out'} onPress={handleSignOut} />
+          <MenuRow title={t('settingsExtra.signOut')} onPress={handleSignOut} />
 
           {/* Danger Zone */}
           <View style={styles.dangerZone}>
-            <Text style={styles.dangerTitle}>{t('dangerZone') || 'Danger Zone'}</Text>
+            <Text style={styles.dangerTitle}>{t('settingsExtra.dangerZone')}</Text>
             <Pressable onPress={handleDeleteAccount} style={styles.dangerButton}>
-              <Text style={styles.dangerButtonText}>{t('deleteAccount') || 'Delete Account'}</Text>
+              <Text style={styles.dangerButtonText}>{t('settingsExtra.deleteAccount')}</Text>
             </Pressable>
           </View>
 
           {/* Footer */}
           <View style={styles.footer}>
-            <Text style={styles.footerVersion}>{(t('version') || 'Version')} 1.0 (1)</Text>
+            <Text style={styles.footerVersion}>{t('settingsExtra.version')} 1.0 (1)</Text>
           </View>
         </View>
       </ScrollView>
@@ -317,11 +303,11 @@ export default function PersonalSettingsScreen() {
       >
         <Pressable style={styles.modalBackdrop} onPress={() => setLangModal(false)}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>{t('language') || 'Language'}</Text>
+            <Text style={styles.modalTitle}>{t('language.title')}</Text>
             {[
-              { key: 'system', label: t('follow_system') || 'Follow system' },
-              { key: 'en', label: 'English' },
-              { key: 'ko', label: '한국어' },
+              { key: 'system', label: t('language.followSystem') },
+              { key: 'en', label: t('language.english') },
+              { key: 'ko', label: t('language.korean') },
             ].map((opt) => (
               <Pressable
                 key={opt.key}
@@ -329,7 +315,7 @@ export default function PersonalSettingsScreen() {
                 onPress={() => selectLanguage(opt.key)}
               >
                 <Text style={styles.modalText}>{opt.label}</Text>
-                {language === opt.key && (
+                {uiLanguage === opt.key && (
                   <Text style={styles.modalCheck}>{Platform.OS === 'ios' ? '✓' : '✔'}</Text>
                 )}
               </Pressable>
