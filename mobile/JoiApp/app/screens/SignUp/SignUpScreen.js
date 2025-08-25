@@ -1,195 +1,171 @@
 // app/screens/SignUp/SignUpScreen.js
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
+  SafeAreaView,
   View,
   Text,
   TextInput,
   TouchableOpacity,
-  ActivityIndicator,
   Alert,
-  ScrollView,
+  Linking,
+  ActivityIndicator,
+  Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
+// If you already have a styles file, keep this import.
+// Otherwise you can remove it and rely on the inline styles below.
 import styles from './SignUpScreen.styles';
 
-const isEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+const POLICY_URL = 'https://example.com/legal/privacy';
+const TERMS_URL  = 'https://example.com/legal/terms';
 
 export default function SignUpScreen({ onSuccess }) {
-  const router = useRouter();
-  const { t } = useTranslation();
-
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
+  const [pw, setPw] = useState('');
+  const [pw2, setPw2] = useState('');
+  const [agree, setAgree] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const [errors, setErrors] = useState({ email: '', password: '', confirm: '' });
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const emailOk = useMemo(() => /\S+@\S+\.\S+/.test(email), [email]);
+  const pwOk = useMemo(() => pw.length >= 6, [pw]);
+  const pwMatch = pw && pw2 && pw === pw2;
 
-  const validate = () => {
-    const next = { email: '', password: '', confirm: '' };
+  const canSubmit = emailOk && pwOk && pwMatch && agree && !loading;
 
-    if (!email) next.email = t('auth.required', { defaultValue: 'Email is required' });
-    else if (!isEmail(email)) next.email = t('auth.invalidEmail', { defaultValue: 'Please enter a valid email address' });
-
-    if (!password) next.password = t('auth.required', { defaultValue: 'Password is required' });
-    else if (password.length < 8) next.password = t('auth.passwordMin8', { defaultValue: 'Password must be at least 8 characters' });
-    else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password))
-      next.password = t('auth.passwordComplexity', { defaultValue: 'Include uppercase, lowercase, and a number' });
-
-    if (!confirm) next.confirm = t('auth.confirmPasswordRequired', { defaultValue: 'Please confirm your password' });
-    else if (confirm !== password) next.confirm = t('auth.passwordsDontMatch', { defaultValue: 'Passwords do not match' });
-
-    setErrors(next);
-    return !next.email && !next.password && !next.confirm;
-  };
-
-  const handleSignUp = async () => {
-    if (!validate()) return;
-    setIsLoading(true);
+  const handleOpen = async (url) => {
     try {
-      // TODO: replace with real API request
-      await new Promise((r) => setTimeout(r, 1400));
-
-      // ✅ store a token to mark user as authenticated
-      await AsyncStorage.setItem('authToken', 'demo-token');
-
-      // ✅ trigger navigation
-      if (onSuccess) onSuccess();
-      else router.replace('/survey');
-    } catch (e) {
-      Alert.alert(
-        t('auth.signupFailedTitle', { defaultValue: 'Sign up failed' }),
-        t('auth.signupFailedMsg', { defaultValue: 'Please try again.' })
-      );
-    } finally {
-      setIsLoading(false);
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert('Oops', 'Unable to open link right now.');
     }
   };
 
-  const wrap = (hasError) => [styles.inputWrapper, hasError ? styles.inputWrapperError : styles.inputWrapperNormal];
+  const handleSignUp = async () => {
+    if (!canSubmit) return;
+
+    try {
+      setLoading(true);
+
+      // TODO: replace with your real API
+      await new Promise((r) => setTimeout(r, 900));
+
+      // store token (authenticated) + consent
+      await AsyncStorage.multiSet([
+        ['authToken', 'demo-token'],
+        ['privacyConsent', 'true'],
+        // optional: mark onboarding done if you want
+        // ['hasOnboarded', 'true'],
+      ]);
+
+      if (onSuccess) onSuccess();
+    } catch (e) {
+      Alert.alert('Sign up failed', 'Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-      <View style={styles.card}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>
-            {t('auth.createAccount', { defaultValue: 'Create Account' })}
-          </Text>
-          <Text style={styles.subtitle}>
-            {t('auth.joinSubtitle', { defaultValue: 'Join JoiApp to start your wellness journey' })}
-          </Text>
-        </View>
+    <SafeAreaView style={[fallback.container]}>
+      <View style={fallback.card}>
+        <Text style={fallback.title}>Create your account</Text>
+        <Text style={fallback.sub}>Join Joi to track and improve emotional wellness.</Text>
 
         {/* Email */}
-        <View style={styles.group}>
-          <Text style={styles.label}>{t('auth.email', { defaultValue: 'Email' })}</Text>
-          <View style={wrap(!!errors.email)}>
-            <TextInput
-              style={styles.input}
-              placeholder={t('auth.emailPlaceholder', { defaultValue: 'Enter your email' })}
-              placeholderTextColor="#9CA3AF"
-              autoCapitalize="none"
-              keyboardType="email-address"
-              value={email}
-              onChangeText={(tval) => {
-                setEmail(tval);
-                if (errors.email) setErrors((e) => ({ ...e, email: '' }));
-              }}
-              returnKeyType="next"
-            />
-          </View>
-          {!!errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
-        </View>
+        <Text style={fallback.label}>Email</Text>
+        <TextInput
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          placeholder="you@example.com"
+          style={[fallback.input, !emailOk && email.length > 0 ? fallback.inputError : null]}
+        />
 
         {/* Password */}
-        <View style={styles.group}>
-          <Text style={styles.label}>{t('auth.password', { defaultValue: 'Password' })}</Text>
-          <View style={wrap(!!errors.password)}>
-            <TextInput
-              style={styles.input}
-              placeholder={t('auth.createPasswordPlaceholder', { defaultValue: 'Create a password' })}
-              placeholderTextColor="#9CA3AF"
-              secureTextEntry={!showPassword}
-              value={password}
-              onChangeText={(tval) => {
-                setPassword(tval);
-                if (errors.password) setErrors((e) => ({ ...e, password: '' }));
-              }}
-              returnKeyType="next"
-            />
-            <TouchableOpacity onPress={() => setShowPassword((s) => !s)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={styles.toggleText}>
-                {showPassword ? t('auth.hide', { defaultValue: 'Hide' }) : t('auth.show', { defaultValue: 'Show' })}
-              </Text>
-            </TouchableOpacity>
-          </View>
-          {!!errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
-        </View>
+        <Text style={fallback.label}>Password</Text>
+        <TextInput
+          value={pw}
+          onChangeText={setPw}
+          secureTextEntry
+          placeholder="Minimum 6 characters"
+          style={[fallback.input, !pwOk && pw.length > 0 ? fallback.inputError : null]}
+        />
 
-        {/* Confirm Password */}
-        <View style={styles.group}>
-          <Text style={styles.label}>{t('auth.confirmPassword', { defaultValue: 'Confirm Password' })}</Text>
-          <View style={wrap(!!errors.confirm)}>
-            <TextInput
-              style={styles.input}
-              placeholder={t('auth.confirmPasswordPlaceholder', { defaultValue: 'Confirm your password' })}
-              placeholderTextColor="#9CA3AF"
-              secureTextEntry={!showConfirm}
-              value={confirm}
-              onChangeText={(tval) => {
-                setConfirm(tval);
-                if (errors.confirm) setErrors((e) => ({ ...e, confirm: '' }));
-              }}
-              returnKeyType="done"
-              onSubmitEditing={handleSignUp}
-            />
-            <TouchableOpacity onPress={() => setShowConfirm((s) => !s)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={styles.toggleText}>
-                {showConfirm ? t('auth.hide', { defaultValue: 'Hide' }) : t('auth.show', { defaultValue: 'Show' })}
-              </Text>
-            </TouchableOpacity>
+        {/* Confirm */}
+        <Text style={fallback.label}>Confirm password</Text>
+        <TextInput
+          value={pw2}
+          onChangeText={setPw2}
+          secureTextEntry
+          placeholder="Re-enter password"
+          style={[fallback.input, pw2.length > 0 && !pwMatch ? fallback.inputError : null]}
+        />
+
+        {/* Consent row */}
+        <TouchableOpacity
+          onPress={() => setAgree(!agree)}
+          style={fallback.agreeRow}
+          activeOpacity={0.8}
+        >
+          <View style={[fallback.checkbox, agree && fallback.checkboxOn]}>
+            {agree ? <Text style={fallback.checkboxMark}>{Platform.OS === 'ios' ? '✓' : '✔'}</Text> : null}
           </View>
-          {!!errors.confirm && <Text style={styles.errorText}>{errors.confirm}</Text>}
-        </View>
+          <Text style={fallback.agreeText}>
+            I agree to the{' '}
+            <Text style={fallback.link} onPress={() => handleOpen(TERMS_URL)}>Terms</Text>
+            {' '}and{' '}
+            <Text style={fallback.link} onPress={() => handleOpen(POLICY_URL)}>Privacy Policy</Text>.
+          </Text>
+        </TouchableOpacity>
 
         {/* Submit */}
         <TouchableOpacity
-          style={[styles.button, isLoading ? styles.buttonDisabled : styles.buttonEnabled]}
           onPress={handleSignUp}
-          disabled={isLoading}
-          activeOpacity={0.85}
+          disabled={!canSubmit}
+          style={[fallback.primaryBtn, !canSubmit && fallback.primaryBtnDisabled]}
+          activeOpacity={0.9}
         >
-          {isLoading ? (
-            <View style={styles.loadingRow}>
-              <ActivityIndicator size="small" color="#fff" />
-              <Text style={[styles.buttonText, { marginLeft: 8 }]}>
-                {t('auth.creatingAccount', { defaultValue: 'Creating Account...' })}
-              </Text>
-            </View>
+          {loading ? (
+            <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.buttonText}>
-              {t('auth.createAccount', { defaultValue: 'Create Account' })}
-            </Text>
+            <Text style={fallback.primaryText}>Create Account</Text>
           )}
         </TouchableOpacity>
-
-        {/* Already have account */}
-        <View style={styles.signupRow}>
-          <Text style={styles.signupText}>
-            {t('auth.haveAccountPrefix', { defaultValue: 'Already have an account? ' })}
-          </Text>
-          <TouchableOpacity onPress={() => router.replace('/auth/login')}>
-            <Text style={styles.signupLink}>
-              {t('auth.login', { defaultValue: 'Log in' })}
-            </Text>
-          </TouchableOpacity>
-        </View>
       </View>
-    </ScrollView>
+    </SafeAreaView>
   );
 }
+
+/**
+ * Minimal inline styles so this file works even if you don't have SignUpScreen.styles.js.
+ * If you already have your own styles, you can delete `fallback` and use your import.
+ */
+const fallback = {
+  container: { flex: 1, backgroundColor: '#F5F5F5', padding: 20 },
+  card: { backgroundColor: '#fff', borderRadius: 16, padding: 18, borderWidth: 1, borderColor: '#E5E7EB' },
+  title: { fontSize: 22, fontWeight: '800', color: '#111827' },
+  sub: { marginTop: 4, color: '#6B7280' },
+  label: { marginTop: 14, marginBottom: 6, color: '#111827', fontWeight: '600' },
+  input: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: Platform.OS === 'ios' ? 14 : 10,
+  },
+  inputError: { borderColor: '#EF4444' },
+  agreeRow: { flexDirection: 'row', alignItems: 'center', marginTop: 16 },
+  checkbox: {
+    width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: '#9CA3AF',
+    alignItems: 'center', justifyContent: 'center', marginRight: 10, backgroundColor: '#fff',
+  },
+  checkboxOn: { backgroundColor: '#111827', borderColor: '#111827' },
+  checkboxMark: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  agreeText: { color: '#374151', flex: 1, flexWrap: 'wrap' },
+  link: { color: '#1D4ED8', fontWeight: '600' },
+  primaryBtn: { marginTop: 18, backgroundColor: '#111827', borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
+  primaryBtnDisabled: { opacity: 0.4 },
+  primaryText: { color: '#fff', fontWeight: '800' },
+};

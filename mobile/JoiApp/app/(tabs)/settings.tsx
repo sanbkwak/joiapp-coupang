@@ -1,12 +1,6 @@
-// app/(tabs)/settings.tsx
 import React from 'react';
-import RequireAuth from '../_components/RequireAuth';
-import PersonalSettingsScreen from '../screens/Settings/PersonalSettingsScreen';
+import PersonalSettingsScreen from '../_screens/Settings/PersonalSettingsScreen';
 
 export default function SettingsRoute() {
-  return (
-    <RequireAuth>
-      <PersonalSettingsScreen />
-    </RequireAuth>
-  );
+  return <PersonalSettingsScreen />;
 }

@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Localization from 'expo-localization';
-import i18n from '../i18n/translations'; // ← same singleton used everywhere
+import i18n from '../_i18n/translations'; // ← same singleton used everywhere
 
 export const LANG_KEY = 'appLanguage'; // 'system' | 'en' | 'ko'
 
