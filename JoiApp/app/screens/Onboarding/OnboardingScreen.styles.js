@@ -1,445 +1,130 @@
 import { StyleSheet } from 'react-native';
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
+export default StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
+  scrollContent: { padding: 20, paddingBottom: 40 },
+
+  // progress
+  progressTrack: {
+    height: 4,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 999,
+    overflow: 'hidden',
+    marginTop: 8,
+    marginBottom: 12,
   },
-  progressContainer: {
-    height: 3,
-    backgroundColor: '#f0f0f0',
-  },
-  progressBar: {
-    height: '100%',
-    backgroundColor: '#f0f0f0',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#667EEA',
-  },
-  stepIndicator: {
-    padding: 20,
-    paddingBottom: 10,
-  },
-  stepIndicatorText: {
-    backgroundColor: '#667EEA',
-    color: 'white',
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-    borderRadius: 15,
-    fontSize: 12,
-    fontWeight: '600',
+  progressFill: { height: '100%', backgroundColor: '#6366F1', borderRadius: 999 },
+
+  // step pill
+  stepPill: {
     alignSelf: 'flex-start',
+    backgroundColor: '#6366F1',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    marginTop: 8,
+    marginBottom: 14,
   },
-  contentContainer: {
-    flex: 1,
-  },
-  stepContainer: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  logoContainer: {
+  stepPillText: { color: 'white', fontWeight: '700' },
+
+  // hero
+  hero: { alignItems: 'center', marginBottom: 12 },
+  heroIcon: {
+    width: 120,
+    height: 120,
+    borderRadius: 999,
+    backgroundColor: '#111827',
     alignItems: 'center',
-    paddingVertical: 40,
-  },
-  logo: {
-    width: 80,
-    height: 80,
-    backgroundColor: '#1A1A1A',
-    borderRadius: 40,
     justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 18,
   },
-  logoText: {
-    color: 'white',
-    fontSize: 24,
-  },
-  appTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#1A1A1A',
-    marginBottom: 10,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  stepTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#1A1A1A',
-    marginBottom: 15,
-    textAlign: 'center',
-  },
-  stepSubtitle: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 30,
-  },
-  featuresContainer: {
-    paddingVertical: 20,
-  },
+  heroIconEmoji: { fontSize: 34, color: '#FFFFFF' },
+  heroTitle: { fontSize: 36, fontWeight: '800', color: '#111827' },
+  heroSubtitle: { marginTop: 8, fontSize: 16, color: '#6B7280', textAlign: 'center' },
+
+  // feature card
   featureCard: {
-    backgroundColor: '#F8F9FA',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
-    borderLeftWidth: 4,
-  },
-  featureIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    alignSelf: 'center',
-    marginBottom: 15,
-  },
-  featureIconText: {
-    fontSize: 20,
-  },
-  featureTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1A1A1A',
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  featureDescription: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  primaryButton: {
-    backgroundColor: '#1A1A1A',
-    paddingVertical: 16,
-    borderRadius: 25,
-    marginVertical: 20,
-    marginBottom: 40,
-  },
-  primaryButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  inputInterface: {
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#F9FAFB',
     borderRadius: 20,
-    padding: 30,
-    marginBottom: 30,
+    padding: 18,
+    borderLeftWidth: 6,
+    marginTop: 18,
   },
-  questionText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1A1A1A',
+  featureEmojiWrap: {
+    alignSelf: 'center',
+    width: 64,
+    height: 64,
+    borderRadius: 16,
+    backgroundColor: '#FFEFEF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  featureEmoji: { fontSize: 28 },
+  featureTitle: { fontSize: 24, fontWeight: '800', textAlign: 'center', color: '#111827' },
+  featureSubtitle: { marginTop: 8, textAlign: 'center', color: '#6B7280', fontSize: 15 },
+
+  // step 2 titles
+  sectionTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#111827',
     textAlign: 'center',
-    marginBottom: 10,
+    marginTop: 8,
   },
-  instructionText: {
-    fontSize: 14,
-    color: '#666',
+  sectionSubtitle: {
     textAlign: 'center',
-    marginBottom: 30,
+    color: '#6B7280',
+    marginTop: 8,
+    marginBottom: 12,
+    fontSize: 16,
   },
-  inputMethodsGrid: {
+
+  // input card
+  inputCard: { backgroundColor: '#F3F4F6', borderRadius: 20, padding: 16, marginTop: 8 },
+  inputQuestion: { fontSize: 22, fontWeight: '800', textAlign: 'center', color: '#111827', marginTop: 4 },
+  inputSub: { textAlign: 'center', color: '#6B7280', marginTop: 4, marginBottom: 14 },
+
+  // 2x2 grid of input methods
+  inputGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginBottom: 30,
+    marginTop: 8,
   },
-  inputMethod: {
+  inputButton: {
     width: '48%',
-    backgroundColor: 'white',
-    borderWidth: 2,
-    borderColor: '#E9ECEF',
-    borderRadius: 12,
-    padding: 20,
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  inputMethodSelected: {
-    borderColor: '#667EEA',
-    backgroundColor: '#F8F9FF',
-  },
-  inputMethodIcon: {
-    fontSize: 24,
-    marginBottom: 8,
-  },
-  inputMethodLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1A1A1A',
-  },
-  moodIndicators: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 20,
-  },
-  moodFace: {
-    fontSize: 32,
-  },
-  keyFeatures: {
-    marginBottom: 20,
-  },
-  keyFeaturesTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1A1A1A',
-    marginBottom: 10,
-  },
-  featureListItem: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
-    paddingLeft: 10,
-  },
-  recordingInterface: {
-    backgroundColor: '#F8F9FA',
-    borderRadius: 20,
-    padding: 40,
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  recordButton: {
-    width: 80,
-    height: 80,
-    backgroundColor: '#FF5252',
-    borderRadius: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  recordButtonActive: {
-    backgroundColor: '#D32F2F',
-  },
-  recordButtonIcon: {
-    color: 'white',
-    fontSize: 24,
-  },
-  recordingStatus: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1A1A1A',
-    marginBottom: 5,
-  },
-  recordingInstruction: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 20,
-  },
-  waveform: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 40,
-    marginBottom: 20,
-  },
-  waveBar: {
-    width: 4,
-    height: 10,
-    backgroundColor: '#FF5252',
-    borderRadius: 2,
-    marginHorizontal: 2,
-  },
-  progressLine: {
-    width: '100%',
-    height: 4,
-    backgroundColor: '#E9ECEF',
-    borderRadius: 2,
-    marginBottom: 20,
-  },
-  analysisInterface: {
-    backgroundColor: '#F8F9FA',
-    borderRadius: 20,
-    padding: 40,
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  analysisIcon: {
-    width: 60,
-    height: 60,
-    backgroundColor: '#1A1A1A',
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  analysisIconText: {
-    color: 'white',
-    fontSize: 20,
-  },
-  analysisTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1A1A1A',
-    marginBottom: 10,
-  },
-  analysisSubtitle: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 30,
-    textAlign: 'center',
-  },
-  metrics: {
-    width: '100%',
-    marginBottom: 20,
-  },
-  metric: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 5,
-  },
-  metricLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1A1A1A',
-  },
-  metricValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1A1A1A',
-  },
-  metricBar: {
-    width: '100%',
-    height: 8,
-    backgroundColor: '#E9ECEF',
-    borderRadius: 4,
-    marginBottom: 15,
-    overflow: 'hidden',
-  },
-  metricFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  insightsBox: {
-    backgroundColor: '#FFF3CD',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#FFEAA7',
-    borderRadius: 12,
-    padding: 15,
-    width: '100%',
-  },
-  insightsTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#856404',
-    marginBottom: 5,
-  },
-  insightsText: {
-    fontSize: 14,
-    color: '#856404',
-    lineHeight: 20,
-  },
-  recommendationsInterface: {
-    backgroundColor: '#F8F9FA',
-    borderRadius: 20,
-    padding: 30,
+    borderColor: '#E5E7EB',
+    borderRadius: 16,
+    paddingVertical: 20,
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  recommendationsList: {
-    width: '100%',
-    marginBottom: 20,
-  },
-  recommendation: {
-    backgroundColor: 'white',
-    borderWidth: 1,
-    borderColor: '#E9ECEF',
-    borderRadius: 12,
-    padding: 15,
-    marginBottom: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  recIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 15,
-  },
-  recIconText: {
-    fontSize: 16,
-  },
-  recContent: {
-    flex: 1,
-  },
-  recTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1A1A1A',
-    marginBottom: 2,
-  },
-  recSubtitle: {
-    fontSize: 14,
-    color: '#666',
-  },
-  journeyView: {
-    backgroundColor: '#F8F9FA',
-    borderRadius: 20,
-    padding: 30,
-    marginBottom: 30,
-  },
-  journeyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1A1A1A',
-    textAlign: 'center',
-    marginBottom: 10,
-  },
-  journeySubtitle: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 30,
-  },
-  journeyItems: {
-    marginBottom: 20,
-  },
-  journeyItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  journeyItemLabel: {
-    fontSize: 16,
-    color: '#1A1A1A',
-  },
-  journeyItemValue: {
-    fontSize: 16,
-    color: '#1A1A1A',
-  },
-  streakCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 20,
-    alignItems: 'center',
-  },
-  streakLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#667EEA',
-    marginBottom: 10,
-  },
-  streakNumber: {
-    fontSize: 36,
-    fontWeight: '700',
-    color: '#667EEA',
-    marginBottom: 5,
-  },
-  streakDays: {
-    fontSize: 14,
-    color: '#666',
-  },
-});
+  inputIcon: { fontSize: 28, marginBottom: 6 },
+  inputLabel: { fontSize: 18, fontWeight: '700', color: '#111827' },
 
-export default styles;
+  // emoji row (fixed horizontal alignment)
+  emojiRow: { flexDirection: 'row', justifyContent: 'space-evenly', marginTop: 18 },
+  emoji: { fontSize: 32 },
+
+  // key list
+  keyListWrap: { marginTop: 18 },
+  keyListTitle: { fontSize: 20, fontWeight: '800', color: '#111827' },
+  keyItem: { marginTop: 8, color: '#374151', fontSize: 16 },
+
+  // CTA
+  ctaPrimary: {
+    marginTop: 22,
+    backgroundColor: '#111827',
+    paddingVertical: 16,
+    borderRadius: 20,
+    alignItems: 'center',
+  },
+  ctaPrimaryText: { color: 'white', fontWeight: '800', fontSize: 18 },
+});
